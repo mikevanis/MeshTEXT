@@ -1,28 +1,32 @@
 #include "nav.h"
 #include "render.h"
-#include "testpages.h"
+#include "storage.h"
+#include <Arduino.h>
 
 static NavState state = NAV_DIRECTORY;
 static uint8_t  dirIndex = 0;
 static Page     currentPage;
 static bool     needsRedraw = true;
 
-// Directory titles (built from test pages)
-static const char* dirTitles[TEST_PAGE_COUNT];
-static char titleBufs[TEST_PAGE_COUNT][16];
+static PageListEntry pageList[MAX_PAGES];
+static uint8_t       pageCount = 0;
+static const char*   dirTitles[MAX_PAGES];
+
+void navRefreshDirectory() {
+    pageCount = storageListPages(pageList, MAX_PAGES);
+    for (uint8_t i = 0; i < pageCount; i++) {
+        dirTitles[i] = pageList[i].title;
+    }
+    if (dirIndex >= pageCount && pageCount > 0) {
+        dirIndex = pageCount - 1;
+    }
+    needsRedraw = true;
+}
 
 void navInit() {
-    // Cache title strings from PROGMEM test pages
-    for (uint8_t i = 0; i < TEST_PAGE_COUNT; i++) {
-        Page p;
-        getTestPage(i, p);
-        memcpy(titleBufs[i], p.title, 16);
-        dirTitles[i] = titleBufs[i];
-    }
-
     state = NAV_DIRECTORY;
     dirIndex = 0;
-    needsRedraw = true;
+    navRefreshDirectory();
 }
 
 void navHandleButton(ButtonEvent evt) {
@@ -30,22 +34,21 @@ void navHandleButton(ButtonEvent evt) {
 
     switch (state) {
         case NAV_DIRECTORY:
+            if (pageCount == 0) break;
             if (evt == BTN_SHORT) {
-                // Scroll down
-                dirIndex = (dirIndex + 1) % TEST_PAGE_COUNT;
+                dirIndex = (dirIndex + 1) % pageCount;
                 needsRedraw = true;
             }
             else if (evt == BTN_DOUBLE) {
-                // Select page
-                getTestPage(dirIndex, currentPage);
-                state = NAV_PAGE_VIEW;
-                needsRedraw = true;
+                if (storageLoadPage(pageList[dirIndex].page_num, currentPage)) {
+                    state = NAV_PAGE_VIEW;
+                    needsRedraw = true;
+                }
             }
             break;
 
         case NAV_PAGE_VIEW:
             if (evt == BTN_LONG) {
-                // Back to directory
                 state = NAV_DIRECTORY;
                 needsRedraw = true;
             }
@@ -59,7 +62,11 @@ void navRender() {
 
     switch (state) {
         case NAV_DIRECTORY:
-            renderDirectory(dirTitles, TEST_PAGE_COUNT, dirIndex);
+            if (pageCount == 0) {
+                renderMessage("No pages");
+            } else {
+                renderDirectory(dirTitles, pageCount, dirIndex);
+            }
             break;
 
         case NAV_PAGE_VIEW:

@@ -7,6 +7,7 @@ enum NavState {
 };
 
 void navInit();
+void navRefreshDirectory();
 void navHandleButton(ButtonEvent evt);
 void navRender();
 NavState navGetState();
