@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>MeshText Editor</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,system-ui,sans-serif;background:#1a1a2e;color:#e0e0e0;
+  max-width:480px;margin:0 auto;padding:8px;-webkit-user-select:none;user-select:none}
+h1{font-size:18px;text-align:center;padding:8px 0;color:#0ff}
+.bar{display:flex;gap:4px;margin:4px 0;flex-wrap:wrap}
+.bar button,.bar select{flex:1;min-width:60px;padding:8px 4px;border:1px solid #444;
+  border-radius:4px;background:#2a2a4a;color:#e0e0e0;font-size:13px;cursor:pointer}
+.bar button.active{background:#0aa;color:#000}
+.bar button:active{opacity:0.7}
+
+/* Grid */
+#grid-wrap{background:#000;padding:4px;border-radius:4px;margin:4px 0;
+  overflow-x:auto;-webkit-overflow-scrolling:touch}
+#grid{display:grid;grid-template-columns:repeat(20,minmax(18px,1fr));gap:0;
+  width:100%;aspect-ratio:20/8}
+.cell{aspect-ratio:6/8;border:1px solid #222;display:flex;align-items:center;
+  justify-content:center;font-family:monospace;font-size:min(3.5vw,14px);color:#fff;
+  cursor:pointer;position:relative;background:#000}
+.cell.sel{border-color:#0ff;box-shadow:inset 0 0 0 1px #0ff}
+.cell canvas{position:absolute;inset:0;width:100%;height:100%}
+
+/* Block editor popup */
+#block-edit{display:none;background:#2a2a4a;border:1px solid #0aa;border-radius:8px;
+  padding:12px;margin:4px 0;text-align:center}
+#block-edit.show{display:block}
+#block-grid{display:inline-grid;grid-template-columns:1fr 1fr;gap:4px}
+#block-grid .blk{width:40px;height:28px;border:2px solid #444;border-radius:4px;
+  cursor:pointer;background:#000}
+#block-grid .blk.on{background:#fff}
+
+/* Text input */
+#text-input{display:none;margin:4px 0}
+#text-input.show{display:flex;gap:4px}
+#text-input input{flex:1;padding:8px;border:1px solid #444;border-radius:4px;
+  background:#2a2a4a;color:#fff;font-family:monospace;font-size:16px}
+
+/* Page list */
+#pages{margin:8px 0}
+#page-list{max-height:120px;overflow-y:auto;margin:4px 0}
+.pitem{display:flex;justify-content:space-between;align-items:center;padding:6px 8px;
+  border:1px solid #333;border-radius:4px;margin:2px 0;cursor:pointer}
+.pitem.active{border-color:#0aa;background:#1a3a4a}
+.pitem .del{color:#f44;padding:4px 8px;font-size:16px}
+
+/* Page settings */
+#page-settings{margin:4px 0;padding:8px;background:#2a2a4a;border-radius:4px;display:none}
+#page-settings.show{display:block}
+#page-settings label{display:block;margin:4px 0;font-size:13px}
+#page-settings input[type=text],#page-settings input[type=number]{
+  width:100%;padding:6px;border:1px solid #444;border-radius:4px;
+  background:#1a1a2e;color:#fff;font-size:14px;margin:2px 0}
+.flags label{display:inline-flex;align-items:center;gap:4px;margin-right:12px}
+
+/* Node settings */
+#node-settings{margin:4px 0;padding:8px;background:#2a2a4a;border-radius:4px;display:none}
+#node-settings.show{display:block}
+#node-settings label{display:block;margin:4px 0;font-size:13px}
+#node-settings input,#node-settings select{
+  width:100%;padding:6px;border:1px solid #444;border-radius:4px;
+  background:#1a1a2e;color:#fff;font-size:14px;margin:2px 0}
+
+/* Preview */
+#preview-wrap{margin:8px 0;text-align:center}
+#preview{background:#000;border:2px solid #333;border-radius:4px;
+  image-rendering:pixelated;width:256px;height:128px}
+
+/* Status */
+#status{text-align:center;padding:6px;font-size:13px;min-height:24px;color:#0f0}
+#status.err{color:#f44}
+</style>
+</head>
+<body>
+<h1>MeshText Editor</h1>
+
+<div class="bar">
+  <button id="btn-text" class="active" onclick="setMode('text')">Text</button>
+  <button id="btn-block" onclick="setMode('block')">Block</button>
+  <button id="btn-pages" onclick="togglePanel('pages')">Pages</button>
+  <button id="btn-settings" onclick="togglePanel('page-settings')">Page</button>
+  <button id="btn-node" onclick="togglePanel('node-settings')">Node</button>
+</div>
+
+<div id="grid-wrap"><div id="grid"></div></div>
+
+<div id="text-input" class="show">
+  <input type="text" id="char-in" maxlength="1" placeholder="Type character..."
+    inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="off">
+  <button onclick="clearCell()">Clear</button>
+</div>
+
+<div id="block-edit">
+  <div id="block-grid"></div>
+  <div style="margin-top:8px">
+    <button onclick="clearCell()">Clear Block</button>
+  </div>
+</div>
+
+<div id="pages">
+  <div class="bar">
+    <button onclick="addPage()">+ New Page</button>
+    <button onclick="savePage()" style="background:#064;border-color:#0a6">Save</button>
+  </div>
+  <div id="page-list"></div>
+</div>
+
+<div id="page-settings">
+  <label>Page Number <input type="number" id="pg-num" min="1" max="255"></label>
+  <label>Title <input type="text" id="pg-title" maxlength="15"></label>
+  <div class="flags">
+    <label><input type="checkbox" id="fl-autocycle"> Auto-cycle</label>
+    <label><input type="checkbox" id="fl-poll"> Poll</label>
+    <label><input type="checkbox" id="fl-visitor"> Visitors</label>
+  </div>
+</div>
+
+<div id="node-settings">
+  <label>Node Name <input type="text" id="nd-name" maxlength="15"></label>
+  <label>Category
+    <select id="nd-cat">
+      <option value="0">General</option>
+      <option value="1">Weather</option>
+      <option value="2">Community</option>
+      <option value="3">Personal</option>
+      <option value="4">Info</option>
+      <option value="5">Fun</option>
+      <option value="6">Sensor</option>
+    </select>
+  </label>
+  <div class="bar"><button onclick="saveNode()">Save Node Settings</button></div>
+  <div style="margin-top:4px;font-size:11px;color:#888" id="nd-id"></div>
+</div>
+
+<div id="preview-wrap">
+  <canvas id="preview" width="128" height="64"></canvas>
+</div>
+
+<div id="status"></div>
+
+<script>
+// State
+let cells = new Uint8Array(160);
+let selIdx = 0;
+let mode = 'text'; // 'text' or 'block'
+let pageNum = 100;
+let pageFlags = 0;
+let pageTitle = 'Untitled';
+let pages = [];
+let dirty = false;
+
+const COLS = 20, ROWS = 8;
+
+// Init grid
+const grid = document.getElementById('grid');
+for (let i = 0; i < 160; i++) {
+  const d = document.createElement('div');
+  d.className = 'cell';
+  d.dataset.i = i;
+  d.addEventListener('click', () => selectCell(i));
+  grid.appendChild(d);
+}
+
+// Init block editor
+const bgrid = document.getElementById('block-grid');
+for (let b = 0; b < 6; b++) {
+  const d = document.createElement('div');
+  d.className = 'blk';
+  d.dataset.b = b;
+  d.addEventListener('click', () => toggleBlock(b));
+  bgrid.appendChild(d);
+}
+
+// Character input
+const charIn = document.getElementById('char-in');
+charIn.addEventListener('input', function() {
+  if (this.value.length > 0) {
+    let ch = this.value.charCodeAt(this.value.length - 1);
+    if (ch >= 0x20 && ch <= 0x7E) {
+      cells[selIdx] = ch;
+      dirty = true;
+      // Advance cursor
+      if (selIdx < 159) selectCell(selIdx + 1);
+      renderGrid();
+      renderPreview();
+    }
+    this.value = '';
+  }
+});
+charIn.addEventListener('keydown', function(e) {
+  if (e.key === 'Backspace') {
+    if (selIdx > 0) selectCell(selIdx - 1);
+    cells[selIdx] = 0;
+    dirty = true;
+    renderGrid();
+    renderPreview();
+  } else if (e.key === 'ArrowLeft' && selIdx > 0) {
+    selectCell(selIdx - 1);
+  } else if (e.key === 'ArrowRight' && selIdx < 159) {
+    selectCell(selIdx + 1);
+  } else if (e.key === 'ArrowUp' && selIdx >= COLS) {
+    selectCell(selIdx - COLS);
+  } else if (e.key === 'ArrowDown' && selIdx + COLS < 160) {
+    selectCell(selIdx + COLS);
+  }
+});
+
+function selectCell(i) {
+  selIdx = i;
+  document.querySelectorAll('.cell').forEach((c, idx) => {
+    c.classList.toggle('sel', idx === i);
+  });
+  if (mode === 'block') updateBlockEditor();
+}
+
+function setMode(m) {
+  mode = m;
+  document.getElementById('btn-text').classList.toggle('active', m === 'text');
+  document.getElementById('btn-block').classList.toggle('active', m === 'block');
+  document.getElementById('text-input').classList.toggle('show', m === 'text');
+  document.getElementById('block-edit').classList.toggle('show', m === 'block');
+  if (m === 'block') updateBlockEditor();
+  if (m === 'text') charIn.focus();
+}
+
+function togglePanel(id) {
+  const el = document.getElementById(id);
+  el.classList.toggle('show');
+}
+
+function clearCell() {
+  cells[selIdx] = 0;
+  dirty = true;
+  renderGrid();
+  renderPreview();
+  if (mode === 'block') updateBlockEditor();
+}
+
+// Block editing
+function updateBlockEditor() {
+  const v = cells[selIdx];
+  const isBlock = (v & 0x80) !== 0;
+  const bits = isBlock ? (v & 0x3F) : 0;
+  document.querySelectorAll('#block-grid .blk').forEach((el) => {
+    const b = parseInt(el.dataset.b);
+    el.classList.toggle('on', (bits & (1 << b)) !== 0);
+  });
+}
+
+function toggleBlock(b) {
+  let v = cells[selIdx];
+  let bits;
+  if ((v & 0x80) === 0) {
+    // Convert to block cell
+    bits = 0;
+  } else {
+    bits = v & 0x3F;
+  }
+  bits ^= (1 << b);
+  cells[selIdx] = 0x80 | bits;
+  dirty = true;
+  updateBlockEditor();
+  renderGrid();
+  renderPreview();
+}
+
+// Render grid
+function renderGrid() {
+  const divs = grid.children;
+  for (let i = 0; i < 160; i++) {
+    const d = divs[i];
+    const v = cells[i];
+    // Remove old content
+    d.textContent = '';
+    const oldC = d.querySelector('canvas');
+    if (oldC) oldC.remove();
+
+    if (v === 0) {
+      // empty
+    } else if ((v & 0x80) === 0) {
+      // Text
+      d.textContent = String.fromCharCode(v);
+    } else {
+      // Block - draw on mini canvas
+      const c = document.createElement('canvas');
+      c.width = 6; c.height = 8;
+      const ctx = c.getContext('2d');
+      const bits = v & 0x3F;
+      ctx.fillStyle = '#fff';
+      for (let b = 0; b < 6; b++) {
+        if (bits & (1 << b)) {
+          const col = b & 1, row = b >> 1;
+          ctx.fillRect(col * 3, row * 2, 3, 2);
+        }
+      }
+      d.appendChild(c);
+    }
+  }
+}
+
+// OLED preview
+function renderPreview() {
+  const canvas = document.getElementById('preview');
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, 128, 64);
+  ctx.fillStyle = '#fff';
+
+  for (let row = 0; row < ROWS; row++) {
+    for (let col = 0; col < COLS; col++) {
+      const v = cells[row * COLS + col];
+      const x = 4 + col * 6;
+      const y = row * 8;
+      if (v === 0) continue;
+      if ((v & 0x80) === 0) {
+        // Text char - draw simple pixel font
+        drawChar(ctx, x, y, v);
+      } else {
+        // Block
+        const bits = v & 0x3F;
+        for (let b = 0; b < 6; b++) {
+          if (bits & (1 << b)) {
+            const bc = b & 1, br = b >> 1;
+            ctx.fillRect(x + bc * 3, y + br * 2, 3, 2);
+          }
+        }
+      }
+    }
+  }
+}
+
+// Minimal 6x8 pixel font (ASCII 0x20-0x7E)
+// Each char is 6 columns, each column is 8 bits (LSB=top)
+const FONT={};
+function initFont(){
+  // We'll use canvas measureText as fallback - draw with a tiny offscreen canvas
+  const c=document.createElement('canvas');
+  c.width=6;c.height=8;
+  const ctx=c.getContext('2d');
+  ctx.font='8px monospace';
+  ctx.textBaseline='top';
+  for(let i=0x20;i<=0x7E;i++){
+    ctx.clearRect(0,0,6,8);
+    ctx.fillStyle='#fff';
+    ctx.fillText(String.fromCharCode(i),0,0);
+    const d=ctx.getImageData(0,0,6,8).data;
+    const cols=new Uint8Array(6);
+    for(let x=0;x<6;x++){
+      let col=0;
+      for(let y=0;y<8;y++){
+        if(d[(y*6+x)*4+3]>128) col|=(1<<y);
+      }
+      cols[x]=col;
+    }
+    FONT[i]=cols;
+  }
+}
+initFont();
+
+function drawChar(ctx, x, y, ch) {
+  const f = FONT[ch];
+  if (!f) return;
+  for (let cx = 0; cx < 6; cx++) {
+    for (let cy = 0; cy < 8; cy++) {
+      if (f[cx] & (1 << cy)) {
+        ctx.fillRect(x + cx, y + cy, 1, 1);
+      }
+    }
+  }
+}
+
+// API
+const API = '';  // same origin
+
+async function api(method, path, body) {
+  const opts = { method, headers: {} };
+  if (body !== undefined) {
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(body);
+  }
+  const r = await fetch(API + path, opts);
+  if (!r.ok) throw new Error(r.statusText);
+  return r.json();
+}
+
+function status(msg, err) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = err ? 'err' : '';
+  if (!err) setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 2000);
+}
+
+// Pages
+async function loadPageList() {
+  try {
+    pages = await api('GET', '/api/pages');
+    renderPageList();
+    if (pages.length > 0) {
+      await loadPageData(pages[0].page_num);
+    }
+  } catch(e) {
+    status('Failed to load pages: ' + e.message, true);
+  }
+}
+
+function renderPageList() {
+  const el = document.getElementById('page-list');
+  el.innerHTML = '';
+  pages.forEach(p => {
+    const d = document.createElement('div');
+    d.className = 'pitem' + (p.page_num === pageNum ? ' active' : '');
+    d.innerHTML = `<span>${p.page_num}: ${esc(p.title || 'Untitled')}</span><span class="del" onclick="event.stopPropagation();deletePage(${p.page_num})">&times;</span>`;
+    d.addEventListener('click', () => loadPageData(p.page_num));
+    el.appendChild(d);
+  });
+}
+
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+async function loadPageData(num) {
+  try {
+    const d = await api('GET', `/api/page/${num}`);
+    pageNum = d.page_num;
+    pageFlags = d.flags;
+    pageTitle = d.title;
+    for (let i = 0; i < 160; i++) cells[i] = d.cells[i] || 0;
+    dirty = false;
+    updatePageSettings();
+    renderGrid();
+    renderPreview();
+    renderPageList();
+    status(`Loaded page ${num}`);
+  } catch(e) {
+    status('Load failed: ' + e.message, true);
+  }
+}
+
+async function savePage() {
+  pageNum = parseInt(document.getElementById('pg-num').value) || pageNum;
+  pageTitle = document.getElementById('pg-title').value || pageTitle;
+  pageFlags = 0;
+  if (document.getElementById('fl-autocycle').checked) pageFlags |= 1;
+  if (document.getElementById('fl-poll').checked) pageFlags |= 2;
+  if (document.getElementById('fl-visitor').checked) pageFlags |= 4;
+
+  try {
+    await api('PUT', `/api/page/${pageNum}`, {
+      page_num: pageNum,
+      flags: pageFlags,
+      title: pageTitle,
+      cells: Array.from(cells)
+    });
+    dirty = false;
+    status('Saved!');
+    await loadPageList();
+  } catch(e) {
+    status('Save failed: ' + e.message, true);
+  }
+}
+
+async function addPage() {
+  // Find next available number
+  const used = new Set(pages.map(p => p.page_num));
+  let num = 100;
+  while (used.has(num) && num < 256) num++;
+  if (num > 255) { status('No free page numbers', true); return; }
+
+  cells.fill(0x20); // spaces
+  pageNum = num;
+  pageTitle = 'New Page';
+  pageFlags = 0;
+  updatePageSettings();
+  renderGrid();
+  renderPreview();
+  dirty = true;
+  status(`New page ${num} - edit and save`);
+}
+
+async function deletePage(num) {
+  if (!confirm(`Delete page ${num}?`)) return;
+  try {
+    await api('DELETE', `/api/page/${num}`);
+    status(`Deleted page ${num}`);
+    await loadPageList();
+  } catch(e) {
+    status('Delete failed: ' + e.message, true);
+  }
+}
+
+function updatePageSettings() {
+  document.getElementById('pg-num').value = pageNum;
+  document.getElementById('pg-title').value = pageTitle;
+  document.getElementById('fl-autocycle').checked = !!(pageFlags & 1);
+  document.getElementById('fl-poll').checked = !!(pageFlags & 2);
+  document.getElementById('fl-visitor').checked = !!(pageFlags & 4);
+}
+
+// Node settings
+async function loadNode() {
+  try {
+    const d = await api('GET', '/api/config');
+    document.getElementById('nd-name').value = d.name;
+    document.getElementById('nd-cat').value = d.category;
+    document.getElementById('nd-id').textContent = 'Node ID: ' + (d.node_id || '').toUpperCase();
+  } catch(e) {}
+}
+
+async function saveNode() {
+  try {
+    await api('PUT', '/api/config', {
+      name: document.getElementById('nd-name').value,
+      category: parseInt(document.getElementById('nd-cat').value)
+    });
+    status('Node settings saved!');
+  } catch(e) {
+    status('Save failed: ' + e.message, true);
+  }
+}
+
+// Init
+selectCell(0);
+renderGrid();
+renderPreview();
+loadPageList();
+loadNode();
+</script>
+</body>
+</html>

@@ -5,6 +5,7 @@
 #include "storage.h"
 #include "config.h"
 #include "page.h"
+#include "webportal.h"
 
 static void createDefaultPage() {
     Page p;
@@ -162,7 +163,20 @@ void loop() {
         Serial.printf("Button: %s\n", names[evt]);
     }
 
-    navHandleButton(evt);
-    navRender();
+    // Very long press toggles WiFi edit mode
+    if (evt == BTN_VERY_LONG) {
+        if (portalIsActive()) {
+            portalStop();
+            navRefreshDirectory();
+            navRender();
+        } else {
+            portalStart();
+        }
+    } else if (!portalIsActive()) {
+        navHandleButton(evt);
+        navRender();
+    }
+
+    portalLoop();
     handleSerial();
 }
