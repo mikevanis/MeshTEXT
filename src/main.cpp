@@ -6,6 +6,9 @@
 #include "config.h"
 #include "page.h"
 #include "webportal.h"
+#include "radio.h"
+#include "protocol.h"
+#include "mesh.h"
 
 static void createDefaultPage() {
     Page p;
@@ -30,6 +33,39 @@ static void createDefaultPage() {
     }
     storageSavePage(p);
 }
+
+// Radio test mode
+static bool radioTestMode = false;
+static uint32_t lastTestSend = 0;
+static uint16_t testCounter = 0;
+
+void radioTestToggle() {
+    radioTestMode = !radioTestMode;
+    Serial.printf("Radio test mode: %s\n", radioTestMode ? "ON" : "OFF");
+}
+
+static void radioTestLoop() {
+    if (!radioTestMode) return;
+    if (millis() - lastTestSend < 5000) return;
+    lastTestSend = millis();
+
+    // Send a test announce packet
+    AnnouncePacket pkt;
+    NodeConfig& cfg = configGet();
+    initHeader(pkt.hdr, PKT_ANNOUNCE, cfg.node_id, BROADCAST_ADDR);
+    strlcpy(pkt.name, cfg.name, sizeof(pkt.name));
+    pkt.category = cfg.category;
+    pkt.page_count = testCounter++;
+    pkt.first_page = 100;
+    pkt.last_page = 100;
+
+    if (radioSend((uint8_t*)&pkt, sizeof(pkt))) {
+        Serial.printf("TX test #%d (pkt_id=%04X)\n", testCounter - 1, pkt.hdr.pkt_id);
+    } else {
+        Serial.println("TX failed");
+    }
+}
+
 
 static char serialBuf[64];
 static uint8_t serialPos = 0;
@@ -119,8 +155,11 @@ static void processCommand(const char* input) {
             Serial.printf("Page %d not found\n", num);
         }
     }
+    else if (line == "radiotest") {
+        radioTestToggle();
+    }
     else {
-        Serial.println("Commands: list, create N \"title\", delete N");
+        Serial.println("Commands: list, create N \"title\", delete N, radiotest");
     }
 }
 
@@ -137,6 +176,12 @@ void setup() {
     }
 
     configInit();
+
+    if (!radioInit()) {
+        Serial.println("WARNING: Radio init failed, continuing without LoRa");
+    }
+
+    meshInit();
 
     // Create default page on first boot
     PageListEntry list[1];
@@ -178,5 +223,8 @@ void loop() {
     }
 
     portalLoop();
+    meshLoop();
+    navLoop();
+    radioTestLoop();
     handleSerial();
 }
