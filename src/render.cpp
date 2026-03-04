@@ -208,6 +208,19 @@ void renderDirectory(const char* titles[], uint8_t count, uint8_t selected) {
     u8g2.sendBuffer();
 }
 
+void renderDim() {
+    u8g2.setContrast(0);
+}
+
+void renderSleep() {
+    u8g2.setPowerSave(1);
+}
+
+void renderWake() {
+    u8g2.setPowerSave(0);
+    u8g2.setContrast(255);
+}
+
 void renderMessage(const char* line1, const char* line2) {
     u8g2.clearBuffer();
     u8g2.setFont(u8g2_font_6x10_tr);

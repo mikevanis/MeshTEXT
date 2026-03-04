@@ -12,6 +12,12 @@ static uint8_t  dirIndex = 0;
 static Page     currentPage;
 static bool     needsRedraw = true;
 
+// Standby mode
+static unsigned long lastActivityMs = 0;
+static DisplayPower  displayState = DISPLAY_ON;
+#define STANDBY_DIM_MS  30000
+#define STANDBY_OFF_MS  60000
+
 // Track which node owns the current page (0 = local)
 static uint32_t currentPageOwner = 0;
 
@@ -144,6 +150,8 @@ static void refreshLocalPages() {
 void navInit() {
     state = NAV_DIRECTORY;
     dirIndex = 0;
+    lastActivityMs = millis();
+    displayState = DISPLAY_ON;
     navRefreshDirectory();
 }
 
@@ -166,6 +174,18 @@ static void enterPageView(const Page& page, uint32_t owner) {
 
 void navHandleButton(ButtonEvent evt) {
     if (evt == BTN_NONE) return;
+
+    // Wake from standby — consume the button press
+    if (displayState != DISPLAY_ON) {
+        renderWake();
+        displayState = DISPLAY_ON;
+        lastActivityMs = millis();
+        needsRedraw = true;
+        return;
+    }
+
+    // Reset idle timer on any button press
+    lastActivityMs = millis();
 
     switch (state) {
         case NAV_DIRECTORY:
@@ -312,6 +332,24 @@ void navLoop() {
         }
     }
 
+    // Standby idle check
+    if (displayState == DISPLAY_ON) {
+        unsigned long idle = millis() - lastActivityMs;
+        if (idle >= STANDBY_OFF_MS) {
+            renderSleep();
+            displayState = DISPLAY_OFF;
+        } else if (idle >= STANDBY_DIM_MS) {
+            renderDim();
+            displayState = DISPLAY_DIM;
+        }
+    } else if (displayState == DISPLAY_DIM) {
+        unsigned long idle = millis() - lastActivityMs;
+        if (idle >= STANDBY_OFF_MS) {
+            renderSleep();
+            displayState = DISPLAY_OFF;
+        }
+    }
+
     // Refresh tally for local interactive pages periodically
     if (state == NAV_PAGE_VIEW && currentPageOwner == 0 && selectCount > 0) {
         static uint32_t lastTallyRefresh = 0;
@@ -378,4 +416,8 @@ void navRender() {
 
 NavState navGetState() {
     return state;
+}
+
+bool navIsStandby() {
+    return displayState != DISPLAY_ON;
 }

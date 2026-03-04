@@ -2,6 +2,13 @@
 #include "page.h"
 #include "react.h"
 
+// Display power states for standby mode
+enum DisplayPower {
+    DISPLAY_ON,
+    DISPLAY_DIM,
+    DISPLAY_OFF
+};
+
 // Cell dimensions in pixels
 #define CELL_W 6
 #define CELL_H 8
@@ -21,3 +28,8 @@ void renderInit();
 void renderPage(const Page& page, const ReactTally* tally = nullptr, int16_t selectedCellIdx = -1);
 void renderDirectory(const char* titles[], uint8_t count, uint8_t selected);
 void renderMessage(const char* line1, const char* line2 = nullptr);
+
+// Display power management for standby mode
+void renderDim();
+void renderWake();
+void renderSleep();

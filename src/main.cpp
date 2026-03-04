@@ -210,8 +210,13 @@ void loop() {
         Serial.printf("Button: %s\n", names[evt]);
     }
 
+    // If in standby, any button wakes display (consumed by navHandleButton)
+    if (evt != BTN_NONE && navIsStandby()) {
+        navHandleButton(evt);
+        navRender();
+    }
     // Very long press toggles WiFi edit mode
-    if (evt == BTN_VERY_LONG) {
+    else if (evt == BTN_VERY_LONG) {
         if (portalIsActive()) {
             portalStop();
             navRefreshDirectory();

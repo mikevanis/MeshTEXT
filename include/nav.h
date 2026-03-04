@@ -15,3 +15,4 @@ void navHandleButton(ButtonEvent evt);
 void navRender();
 void navLoop();  // called every loop for async updates (loading state)
 NavState navGetState();
+bool navIsStandby();
