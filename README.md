@@ -18,8 +18,6 @@
 ├────────────────────────────────────────┤
 │  Peer-to-peer teletext mesh network    │
 │  No internet, no servers, no accounts. │
-│  You exist by carrying a powered-on    │
-│  device.                               │
 └────────────────────────────────────────┘
 ```
 
