@@ -3,6 +3,7 @@
 
 enum NavState {
     NAV_DIRECTORY,
+    NAV_LOCAL_PAGES,
     NAV_PAGE_VIEW,
     NAV_LOADING,
     NAV_NODE_PAGES

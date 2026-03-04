@@ -3,126 +3,140 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-<title>MeshText Editor</title>
+<title>MeshText</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,system-ui,sans-serif;background:#1a1a2e;color:#e0e0e0;
-  max-width:480px;margin:0 auto;padding:8px;-webkit-user-select:none;user-select:none}
-h1{font-size:18px;text-align:center;padding:8px 0;color:#0ff}
-.bar{display:flex;gap:4px;margin:4px 0;flex-wrap:wrap}
-.bar button,.bar select{flex:1;min-width:60px;padding:8px 4px;border:1px solid #444;
-  border-radius:4px;background:#2a2a4a;color:#e0e0e0;font-size:13px;cursor:pointer}
-.bar button.active{background:#0aa;color:#000}
-.bar button:active{opacity:0.7}
+body{font-family:'Courier New',Courier,monospace;background:#000;color:#ccc;
+  max-width:480px;margin:0 auto;padding:0;-webkit-user-select:none;user-select:none;
+  min-height:100vh}
+
+/* Teletext header */
+.header{background:#000;padding:10px 12px 6px;border-bottom:2px solid #0ff;display:flex;
+  align-items:center;justify-content:space-between}
+.header h1{color:#0ff;font-size:20px;font-weight:bold;letter-spacing:2px}
+.header .node-id{color:#666;font-size:11px}
+
+/* Buttons */
+button{font-family:'Courier New',Courier,monospace;border:1px solid #444;background:#111;
+  color:#ccc;padding:8px 12px;cursor:pointer;font-size:13px}
+button:active{opacity:0.7}
+button.primary{border-color:#0a0;color:#0f0}
+button.danger{border-color:#a00;color:#f44}
+button.nav{border-color:#0aa;color:#0ff}
+
+/* ===== SCREEN 1: PAGE LIST ===== */
+#screen-list{padding:8px 12px}
+
+/* Node settings bar */
+.node-bar{display:flex;gap:6px;align-items:center;margin:8px 0 12px;flex-wrap:wrap}
+.node-bar input,.node-bar select,.node-bar button{font-family:'Courier New',Courier,monospace;
+  background:#111;border:1px solid #444;color:#fff;padding:0 8px;font-size:13px;height:36px}
+.node-bar input{flex:1;min-width:100px}
+.node-bar select{min-width:90px}
+.node-bar button{background:#111;height:36px}
+
+/* Page list */
+.page-list-header{color:#0ff;font-size:14px;margin:8px 0 4px;padding:4px 0;
+  border-bottom:1px solid #333}
+.page-entry{display:flex;align-items:center;padding:8px 6px;margin:2px 0;
+  border-left:3px solid #666;background:#0a0a0a}
+.page-entry:nth-child(6n+1){border-left-color:#f00}
+.page-entry:nth-child(6n+2){border-left-color:#0f0}
+.page-entry:nth-child(6n+3){border-left-color:#ff0}
+.page-entry:nth-child(6n+4){border-left-color:#00f}
+.page-entry:nth-child(6n+5){border-left-color:#f0f}
+.page-entry:nth-child(6n+6){border-left-color:#0ff}
+.page-entry .pnum{color:#ff0;font-size:14px;margin-right:8px;min-width:36px}
+.page-entry .ptitle{flex:1;color:#fff;font-size:13px;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.page-entry .pactions{display:flex;gap:4px}
+.page-entry .pactions button{padding:5px 10px;font-size:12px}
+
+.add-bar{margin:10px 0;display:flex;gap:6px}
+
+/* ===== SCREEN 2: EDITOR ===== */
+#screen-editor{display:none;padding:0}
+
+/* Top bar */
+.top-bar{display:flex;gap:4px;align-items:stretch;padding:4px;
+  background:#0a0a0a;border-bottom:1px solid #333}
+.top-bar input,.top-bar button{font-family:'Courier New',Courier,monospace;background:#111;
+  border:1px solid #444;color:#fff;padding:0 8px;font-size:13px;height:38px}
+.top-bar .pg-num-in{width:64px;text-align:center}
+.top-bar .pg-title-in{flex:1;min-width:80px}
 
 /* Grid */
-#grid-wrap{background:#000;padding:4px;border-radius:4px;margin:4px 0;
-  overflow-x:auto;-webkit-overflow-scrolling:touch}
+#grid-wrap{background:#000;padding:4px;margin:0;overflow-x:auto;-webkit-overflow-scrolling:touch}
 #grid{display:grid;grid-template-columns:repeat(20,minmax(18px,1fr));gap:0;
   width:100%;aspect-ratio:20/8}
-.cell{aspect-ratio:6/8;border:1px solid #222;display:flex;align-items:center;
-  justify-content:center;font-family:monospace;font-size:min(3.5vw,14px);color:#fff;
-  cursor:pointer;position:relative;background:#000}
+.cell{aspect-ratio:6/8;border:1px solid #1a1a1a;display:flex;align-items:center;
+  justify-content:center;font-family:'Courier New',Courier,monospace;
+  font-size:min(3.5vw,14px);color:#fff;cursor:pointer;position:relative;background:#000}
 .cell.sel{border-color:#0ff;box-shadow:inset 0 0 0 1px #0ff}
 .cell canvas{position:absolute;inset:0;width:100%;height:100%}
 
-/* Block editor popup */
-#block-edit{display:none;background:#2a2a4a;border:1px solid #0aa;border-radius:8px;
-  padding:12px;margin:4px 0;text-align:center}
-#block-edit.show{display:block}
-#block-grid{display:inline-grid;grid-template-columns:1fr 1fr;gap:4px}
-#block-grid .blk{width:40px;height:28px;border:2px solid #444;border-radius:4px;
-  cursor:pointer;background:#000}
+/* Mode tabs */
+.mode-tabs{display:flex;border-bottom:2px solid #333;margin:0 4px}
+.mode-tab{flex:1;padding:10px 0;text-align:center;color:#888;font-size:13px;
+  cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;background:#000}
+.mode-tab.active{color:#0ff;border-bottom-color:#0ff}
+
+/* Tool area */
+#tool-area{padding:4px;min-height:60px}
+
+/* Block editor grid */
+#block-grid{display:inline-grid;grid-template-columns:1fr 1fr;gap:4px;margin:6px 0}
+#block-grid .blk{width:40px;height:28px;border:2px solid #444;cursor:pointer;background:#000}
 #block-grid .blk.on{background:#fff}
 
-/* Text input */
-#text-input{display:none;margin:4px 0}
-#text-input.show{display:flex;gap:4px}
-#text-input input{flex:1;padding:8px;border:1px solid #444;border-radius:4px;
-  background:#2a2a4a;color:#fff;font-family:monospace;font-size:16px}
+/* Graphic sub-mode toggle */
+.sub-mode-bar{display:flex;gap:4px;margin-bottom:8px}
+.sub-mode-bar button{flex:1}
+.sub-mode-bar button.active{border-color:#0ff;color:#0ff}
 
-/* Page list */
-#pages{margin:8px 0}
-#page-list{max-height:120px;overflow-y:auto;margin:4px 0}
-.pitem{display:flex;justify-content:space-between;align-items:center;padding:6px 8px;
-  border:1px solid #333;border-radius:4px;margin:2px 0;cursor:pointer}
-.pitem.active{border-color:#0aa;background:#1a3a4a}
-.pitem .del{color:#f44;padding:4px 8px;font-size:16px}
+/* Interactive tools */
+.interact-tools .bar{display:flex;gap:4px;margin:4px 0;flex-wrap:wrap}
+.interact-tools .bar button{flex:1;min-width:60px;padding:8px 4px;font-size:12px}
 
-/* Page settings */
-#page-settings{margin:4px 0;padding:8px;background:#2a2a4a;border-radius:4px;display:none}
-#page-settings.show{display:block}
-#page-settings label{display:block;margin:4px 0;font-size:13px}
-#page-settings input[type=text],#page-settings input[type=number]{
-  width:100%;padding:6px;border:1px solid #444;border-radius:4px;
-  background:#1a1a2e;color:#fff;font-size:14px;margin:2px 0}
-.flags label{display:inline-flex;align-items:center;gap:4px;margin-right:12px}
+/* Floating link input near selected cell */
+#link-popup{display:none;position:absolute;z-index:50;background:#111;border:2px solid #f80;
+  padding:8px;min-width:180px}
+#link-popup .link-row{display:flex;gap:4px;align-items:center;margin-top:4px}
+#link-popup input{font-family:'Courier New',Courier,monospace;background:#000;
+  border:1px solid #444;color:#fff;padding:6px 8px;font-size:14px;width:70px}
 
-/* Node settings */
-#node-settings{margin:4px 0;padding:8px;background:#2a2a4a;border-radius:4px;display:none}
-#node-settings.show{display:block}
-#node-settings label{display:block;margin:4px 0;font-size:13px}
-#node-settings input,#node-settings select{
-  width:100%;padding:6px;border:1px solid #444;border-radius:4px;
-  background:#1a1a2e;color:#fff;font-size:14px;margin:2px 0}
+/* Modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);
+  z-index:100;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal{background:#111;border:2px solid #0ff;padding:20px;max-width:300px;width:90%;
+  text-align:center}
+.modal p{margin-bottom:16px;font-size:14px;color:#fff}
+.modal .bar{display:flex;gap:8px;justify-content:center}
 
-/* Preview */
-#preview-wrap{margin:8px 0;text-align:center}
-#preview{background:#000;border:2px solid #333;border-radius:4px;
-  image-rendering:pixelated;width:256px;height:128px}
+/* Hidden input for text typing */
+#hidden-input{position:absolute;left:-9999px;top:-9999px;opacity:0;width:1px;height:1px}
+
+/* Save flash */
+button.saved{background:#0a0 !important;color:#fff !important;border-color:#0f0 !important}
 
 /* Status */
-#status{text-align:center;padding:6px;font-size:13px;min-height:24px;color:#0f0}
+#status{text-align:center;padding:6px 12px;font-size:12px;min-height:22px;color:#0f0;
+  position:fixed;bottom:0;left:0;right:0;background:#000;border-top:1px solid #222}
 #status.err{color:#f44}
 </style>
 </head>
 <body>
-<h1>MeshText Editor</h1>
 
-<div class="bar">
-  <button id="btn-text" class="active" onclick="setMode('text')">Text</button>
-  <button id="btn-block" onclick="setMode('block')">Block</button>
-  <button id="btn-pages" onclick="togglePanel('pages')">Pages</button>
-  <button id="btn-settings" onclick="togglePanel('page-settings')">Page</button>
-  <button id="btn-node" onclick="togglePanel('node-settings')">Node</button>
-</div>
-
-<div id="grid-wrap"><div id="grid"></div></div>
-
-<div id="text-input" class="show">
-  <input type="text" id="char-in" maxlength="1" placeholder="Type character..."
-    inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="off">
-  <button onclick="clearCell()">Clear</button>
-</div>
-
-<div id="block-edit">
-  <div id="block-grid"></div>
-  <div style="margin-top:8px">
-    <button onclick="clearCell()">Clear Block</button>
+<!-- ===== SCREEN 1: PAGE LIST ===== -->
+<div id="screen-list">
+  <div class="header">
+    <h1>░ MESH░TEXT ░</h1>
+    <span class="node-id" id="nd-id"></span>
   </div>
-</div>
 
-<div id="pages">
-  <div class="bar">
-    <button onclick="addPage()">+ New Page</button>
-    <button onclick="savePage()" style="background:#064;border-color:#0a6">Save</button>
-  </div>
-  <div id="page-list"></div>
-</div>
-
-<div id="page-settings">
-  <label>Page Number <input type="number" id="pg-num" min="1" max="255"></label>
-  <label>Title <input type="text" id="pg-title" maxlength="15"></label>
-  <div class="flags">
-    <label><input type="checkbox" id="fl-autocycle"> Auto-cycle</label>
-    <label><input type="checkbox" id="fl-poll"> Poll</label>
-    <label><input type="checkbox" id="fl-visitor"> Visitors</label>
-  </div>
-</div>
-
-<div id="node-settings">
-  <label>Node Name <input type="text" id="nd-name" maxlength="15"></label>
-  <label>Category
+  <div class="node-bar">
+    <input type="text" id="nd-name" maxlength="15" placeholder="Node name">
     <select id="nd-cat">
       <option value="0">General</option>
       <option value="1">Weather</option>
@@ -132,41 +146,136 @@ h1{font-size:18px;text-align:center;padding:8px 0;color:#0ff}
       <option value="5">Fun</option>
       <option value="6">Sensor</option>
     </select>
-  </label>
-  <div class="bar"><button onclick="saveNode()">Save Node Settings</button></div>
-  <div style="margin-top:4px;font-size:11px;color:#888" id="nd-id"></div>
+    <button class="primary" onclick="saveNode()">Save</button>
+  </div>
+
+  <div class="page-list-header">PAGES</div>
+  <div id="page-list"></div>
+
+  <div class="add-bar">
+    <button class="nav" style="flex:1" onclick="addPage()">+ New Page</button>
+  </div>
 </div>
 
-<div id="preview-wrap">
-  <canvas id="preview" width="128" height="64"></canvas>
+<!-- ===== SCREEN 2: EDITOR ===== -->
+<div id="screen-editor">
+  <div class="top-bar">
+    <button class="nav" onclick="goBack()">&lt; Back</button>
+    <input type="number" class="pg-num-in" id="pg-num" min="1" max="255" title="Page number">
+    <input type="text" class="pg-title-in" id="pg-title" maxlength="15" placeholder="Title">
+    <button class="primary" onclick="savePage()">Save</button>
+  </div>
+
+  <div id="grid-wrap"><div id="grid"></div></div>
+
+  <div class="mode-tabs">
+    <div class="mode-tab active" data-mode="text" onclick="setMode('text')">Text</div>
+    <div class="mode-tab" data-mode="graphic" onclick="setMode('graphic')">Graphic</div>
+    <div class="mode-tab" data-mode="interact" onclick="setMode('interact')">Interactive</div>
+  </div>
+
+  <div id="tool-area">
+    <!-- Text tools -->
+    <div id="tools-text">
+      <div style="color:#888;font-size:12px;margin:4px 0">Tap a cell and type. Arrow keys to move.</div>
+      <button onclick="clearCell()">Clear Cell</button>
+    </div>
+
+    <!-- Graphic tools -->
+    <div id="tools-graphic" style="display:none">
+      <div class="sub-mode-bar">
+        <button class="active" id="btn-paint" onclick="setGraphicSub('paint')">Paint</button>
+        <button id="btn-detail" onclick="setGraphicSub('detail')">Detail</button>
+        <button onclick="clearCell()">Clear Cell</button>
+      </div>
+      <div id="paint-hint" style="color:#888;font-size:12px">Tap or drag to paint blocks.</div>
+      <div id="detail-panel" style="display:none">
+        <div id="block-grid"></div>
+      </div>
+    </div>
+
+    <!-- Interactive tools -->
+    <div id="tools-interact" style="display:none">
+      <div class="interact-tools">
+        <div class="bar">
+          <button onclick="placeInteractive(0xF1)">Vote A Btn</button>
+          <button onclick="placeInteractive(0xF2)">Vote B Btn</button>
+        </div>
+        <div class="bar">
+          <button onclick="placeInteractive(0xF3)">A Count</button>
+          <button onclick="placeInteractive(0xF4)">B Count</button>
+          <button onclick="placeInteractive(0xF0)">Visitors</button>
+        </div>
+        <div class="bar">
+          <button onclick="showLinkInput()">Link &rarr;</button>
+          <button onclick="clearCell()">Clear Cell</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
+
+<!-- Floating link popup -->
+<div id="link-popup">
+  <div style="font-size:12px;color:#f80">Link to page:</div>
+  <div class="link-row">
+    <input type="number" id="link-target" min="1" max="255" placeholder="1-255">
+    <button onclick="placeLink()">OK</button>
+    <button onclick="hideLinkInput()">X</button>
+  </div>
+</div>
+
+<!-- Unsaved changes modal -->
+<div class="modal-overlay" id="modal-unsaved">
+  <div class="modal">
+    <p>You have unsaved changes.</p>
+    <div class="bar">
+      <button class="primary" onclick="saveAndExit()">Save &amp; Exit</button>
+      <button class="danger" onclick="discardAndExit()">Discard</button>
+    </div>
+  </div>
+</div>
+
+<input id="hidden-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="off">
 
 <div id="status"></div>
 
 <script>
-// State
+// ===== STATE =====
 let cells = new Uint8Array(160);
 let selIdx = 0;
-let mode = 'text'; // 'text' or 'block'
+let mode = 'text';
+let graphicSub = 'paint';
 let pageNum = 100;
 let pageFlags = 0;
 let pageTitle = 'Untitled';
 let pages = [];
 let dirty = false;
+let painting = false;
 
 const COLS = 20, ROWS = 8;
+const CELL_LINK = 0xF5;
+const INTERACT_LABELS = {0xF0:'VIS',0xF1:'[A]',0xF2:'[B]',0xF3:'#A',0xF4:'#B'};
+const INTERACT_COLORS = {0xF0:'#0f0',0xF1:'#ff0',0xF2:'#ff0',0xF3:'#0ff',0xF4:'#0ff'};
 
-// Init grid
+// ===== GRID INIT =====
 const grid = document.getElementById('grid');
 for (let i = 0; i < 160; i++) {
   const d = document.createElement('div');
   d.className = 'cell';
   d.dataset.i = i;
-  d.addEventListener('click', () => selectCell(i));
+  d.addEventListener('pointerdown', (e) => { onCellDown(i, e); });
+  d.addEventListener('pointerenter', (e) => { onCellEnter(i, e); });
   grid.appendChild(d);
 }
+grid.addEventListener('pointerup', () => { painting = false; });
+grid.addEventListener('pointerleave', () => { painting = false; });
+// Prevent default touch scrolling on grid for paint drag
+grid.addEventListener('touchmove', (e) => {
+  if (mode === 'graphic' && graphicSub === 'paint') e.preventDefault();
+}, { passive: false });
 
-// Init block editor
+// Block editor sub-rectangles
 const bgrid = document.getElementById('block-grid');
 for (let b = 0; b < 6; b++) {
   const d = document.createElement('div');
@@ -176,77 +285,126 @@ for (let b = 0; b < 6; b++) {
   bgrid.appendChild(d);
 }
 
-// Character input
-const charIn = document.getElementById('char-in');
-charIn.addEventListener('input', function() {
+// Hidden input for text mode
+const hiddenInput = document.getElementById('hidden-input');
+hiddenInput.addEventListener('input', function() {
+  if (mode !== 'text') return;
   if (this.value.length > 0) {
     let ch = this.value.charCodeAt(this.value.length - 1);
     if (ch >= 0x20 && ch <= 0x7E) {
+      clearLinkAt(selIdx);
       cells[selIdx] = ch;
       dirty = true;
-      // Advance cursor
       if (selIdx < 159) selectCell(selIdx + 1);
       renderGrid();
-      renderPreview();
     }
     this.value = '';
   }
 });
-charIn.addEventListener('keydown', function(e) {
+hiddenInput.addEventListener('keydown', function(e) {
+  if (mode !== 'text') return;
   if (e.key === 'Backspace') {
-    if (selIdx > 0) selectCell(selIdx - 1);
+    e.preventDefault();
     cells[selIdx] = 0;
     dirty = true;
+    if (selIdx > 0) selectCell(selIdx - 1);
     renderGrid();
-    renderPreview();
   } else if (e.key === 'ArrowLeft' && selIdx > 0) {
-    selectCell(selIdx - 1);
+    e.preventDefault(); selectCell(selIdx - 1);
   } else if (e.key === 'ArrowRight' && selIdx < 159) {
-    selectCell(selIdx + 1);
+    e.preventDefault(); selectCell(selIdx + 1);
   } else if (e.key === 'ArrowUp' && selIdx >= COLS) {
-    selectCell(selIdx - COLS);
+    e.preventDefault(); selectCell(selIdx - COLS);
   } else if (e.key === 'ArrowDown' && selIdx + COLS < 160) {
-    selectCell(selIdx + COLS);
+    e.preventDefault(); selectCell(selIdx + COLS);
   }
 });
 
-function selectCell(i) {
-  selIdx = i;
-  document.querySelectorAll('.cell').forEach((c, idx) => {
-    c.classList.toggle('sel', idx === i);
-  });
-  if (mode === 'block') updateBlockEditor();
+// Clear any link block overlapping cell i (without clearing cell i itself)
+function clearLinkAt(i) {
+  let origin = -1;
+  for (let k = 0; k < 4; k++) {
+    if (i - k >= 0 && cells[i - k] === CELL_LINK) { origin = i - k; break; }
+  }
+  if (origin >= 0) {
+    for (let k = 0; k < 4 && origin + k < 160; k++) {
+      if (origin + k !== i) cells[origin + k] = 0;
+    }
+  }
 }
 
-function setMode(m) {
-  mode = m;
-  document.getElementById('btn-text').classList.toggle('active', m === 'text');
-  document.getElementById('btn-block').classList.toggle('active', m === 'block');
-  document.getElementById('text-input').classList.toggle('show', m === 'text');
-  document.getElementById('block-edit').classList.toggle('show', m === 'block');
-  if (m === 'block') updateBlockEditor();
-  if (m === 'text') charIn.focus();
+// ===== CELL INTERACTIONS =====
+function onCellDown(i, e) {
+  e.preventDefault();
+  if (mode === 'graphic' && graphicSub === 'paint') {
+    painting = true;
+    paintCell(i);
+    selectCell(i);
+  } else {
+    selectCell(i);
+    if (mode === 'text') {
+      hiddenInput.focus();
+    } else if (mode === 'graphic' && graphicSub === 'detail') {
+      updateBlockEditor();
+    }
+  }
 }
 
-function togglePanel(id) {
-  const el = document.getElementById(id);
-  el.classList.toggle('show');
+function onCellEnter(i, e) {
+  if (painting && mode === 'graphic' && graphicSub === 'paint') {
+    paintCell(i);
+  }
 }
 
-function clearCell() {
-  cells[selIdx] = 0;
+function paintCell(i) {
+  clearLinkAt(i);
+  // Toggle: if already a full block, clear it; otherwise set full block
+  if (cells[i] === 0xBF) {
+    cells[i] = 0x00;
+  } else {
+    cells[i] = 0xBF;
+  }
   dirty = true;
   renderGrid();
-  renderPreview();
-  if (mode === 'block') updateBlockEditor();
 }
 
-// Block editing
+function selectCell(i) {
+  selIdx = i;
+  const children = grid.children;
+  for (let j = 0; j < 160; j++) {
+    children[j].classList.toggle('sel', j === i);
+  }
+  if (mode === 'graphic' && graphicSub === 'detail') updateBlockEditor();
+}
+
+// ===== MODES =====
+function setMode(m) {
+  mode = m;
+  document.querySelectorAll('.mode-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.mode === m);
+  });
+  document.getElementById('tools-text').style.display = (m === 'text') ? '' : 'none';
+  document.getElementById('tools-graphic').style.display = (m === 'graphic') ? '' : 'none';
+  document.getElementById('tools-interact').style.display = (m === 'interact') ? '' : 'none';
+  if (m === 'text') hiddenInput.focus();
+  if (m === 'graphic' && graphicSub === 'detail') updateBlockEditor();
+}
+
+function setGraphicSub(sub) {
+  graphicSub = sub;
+  document.getElementById('btn-paint').classList.toggle('active', sub === 'paint');
+  document.getElementById('btn-detail').classList.toggle('active', sub === 'detail');
+  document.getElementById('paint-hint').style.display = (sub === 'paint') ? '' : 'none';
+  document.getElementById('detail-panel').style.display = (sub === 'detail') ? '' : 'none';
+  if (sub === 'detail') updateBlockEditor();
+}
+
+// ===== BLOCK EDITING =====
 function updateBlockEditor() {
   const v = cells[selIdx];
   const isBlock = (v & 0x80) !== 0;
   const bits = isBlock ? (v & 0x3F) : 0;
-  document.querySelectorAll('#block-grid .blk').forEach((el) => {
+  document.querySelectorAll('#block-grid .blk').forEach(el => {
     const b = parseInt(el.dataset.b);
     el.classList.toggle('on', (bits & (1 << b)) !== 0);
   });
@@ -254,39 +412,108 @@ function updateBlockEditor() {
 
 function toggleBlock(b) {
   let v = cells[selIdx];
-  let bits;
-  if ((v & 0x80) === 0) {
-    // Convert to block cell
-    bits = 0;
-  } else {
-    bits = v & 0x3F;
-  }
+  let bits = (v & 0x80) ? (v & 0x3F) : 0;
   bits ^= (1 << b);
   cells[selIdx] = 0x80 | bits;
   dirty = true;
   updateBlockEditor();
   renderGrid();
-  renderPreview();
 }
 
-// Render grid
+function clearCell() {
+  // If this cell is part of a link, clear all 4 cells
+  let linkOrigin = -1;
+  for (let k = 0; k < 4; k++) {
+    if (selIdx - k >= 0 && cells[selIdx - k] === CELL_LINK) { linkOrigin = selIdx - k; break; }
+  }
+  if (linkOrigin >= 0) {
+    for (let k = 0; k < 4 && linkOrigin + k < 160; k++) cells[linkOrigin + k] = 0;
+    selectCell(linkOrigin);
+  } else {
+    cells[selIdx] = 0;
+  }
+  dirty = true;
+  renderGrid();
+  if (mode === 'graphic' && graphicSub === 'detail') updateBlockEditor();
+}
+
+// ===== INTERACTIVE =====
+function placeInteractive(code) {
+  clearLinkAt(selIdx);
+  cells[selIdx] = code;
+  dirty = true;
+  renderGrid();
+  if (selIdx < 159) selectCell(selIdx + 1);
+}
+
+function showLinkInput() {
+  const popup = document.getElementById('link-popup');
+  // Position near selected cell
+  const cellEl = grid.children[selIdx];
+  const cellRect = cellEl.getBoundingClientRect();
+  popup.style.display = 'block';
+  popup.style.left = Math.max(4, Math.min(cellRect.left, window.innerWidth - 200)) + 'px';
+  popup.style.top = (cellRect.bottom + 4) + 'px';
+  document.getElementById('link-target').value = '';
+  document.getElementById('link-target').focus();
+}
+function hideLinkInput() {
+  document.getElementById('link-popup').style.display = 'none';
+}
+function placeLink() {
+  const n = parseInt(document.getElementById('link-target').value);
+  if (isNaN(n) || n < 1 || n > 255) { status('Invalid page number', true); return; }
+  if (selIdx + 3 >= 160) { status('Need 4 cells for link', true); return; }
+  cells[selIdx] = CELL_LINK;
+  cells[selIdx + 1] = n;
+  cells[selIdx + 2] = 0;
+  cells[selIdx + 3] = 0;
+  dirty = true;
+  hideLinkInput();
+  renderGrid();
+  if (selIdx + 4 < 160) selectCell(selIdx + 4);
+  else selectCell(159);
+}
+
+// ===== RENDER GRID =====
 function renderGrid() {
   const divs = grid.children;
   for (let i = 0; i < 160; i++) {
     const d = divs[i];
     const v = cells[i];
-    // Remove old content
     d.textContent = '';
     const oldC = d.querySelector('canvas');
     if (oldC) oldC.remove();
 
-    if (v === 0) {
-      // empty
+    // Find if this cell is part of a 4-cell link block
+    let linkOrigin = -1;
+    for (let k = 0; k < 4; k++) {
+      if (i - k >= 0 && cells[i - k] === CELL_LINK) { linkOrigin = i - k; break; }
+    }
+
+    if (linkOrigin >= 0 && linkOrigin + 1 < 160) {
+      const target = cells[linkOrigin + 1];
+      const label = '\u2192' + String(target).padStart(3, ' ');
+      const offset = i - linkOrigin;
+      d.textContent = label[offset] || '';
+      d.style.color = '#f80';
+      d.style.fontSize = '';
+    } else if (v >= 0xF0 && v <= 0xF5) {
+      {
+        d.textContent = INTERACT_LABELS[v] || '?';
+        d.style.color = INTERACT_COLORS[v] || '#fff';
+        d.style.fontSize = 'min(2.5vw,10px)';
+      }
+    } else if (v === 0) {
+      d.style.color = '#fff';
+      d.style.fontSize = '';
     } else if ((v & 0x80) === 0) {
-      // Text
       d.textContent = String.fromCharCode(v);
+      d.style.color = '#fff';
+      d.style.fontSize = '';
     } else {
-      // Block - draw on mini canvas
+      d.style.color = '#fff';
+      d.style.fontSize = '';
       const c = document.createElement('canvas');
       c.width = 6; c.height = 8;
       const ctx = c.getContext('2d');
@@ -303,87 +530,47 @@ function renderGrid() {
   }
 }
 
-// OLED preview
-function renderPreview() {
-  const canvas = document.getElementById('preview');
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#000';
-  ctx.fillRect(0, 0, 128, 64);
-  ctx.fillStyle = '#fff';
+// ===== SCREEN NAVIGATION =====
+function showPageList() {
+  document.getElementById('screen-list').style.display = 'block';
+  document.getElementById('screen-editor').style.display = 'none';
+  loadPageList();
+}
 
-  for (let row = 0; row < ROWS; row++) {
-    for (let col = 0; col < COLS; col++) {
-      const v = cells[row * COLS + col];
-      const x = 4 + col * 6;
-      const y = row * 8;
-      if (v === 0) continue;
-      if ((v & 0x80) === 0) {
-        // Text char - draw simple pixel font
-        drawChar(ctx, x, y, v);
-      } else {
-        // Block
-        const bits = v & 0x3F;
-        for (let b = 0; b < 6; b++) {
-          if (bits & (1 << b)) {
-            const bc = b & 1, br = b >> 1;
-            ctx.fillRect(x + bc * 3, y + br * 2, 3, 2);
-          }
-        }
-      }
-    }
+function showEditor(num) {
+  document.getElementById('screen-list').style.display = 'none';
+  document.getElementById('screen-editor').style.display = 'block';
+  loadPageData(num);
+}
+
+function goBack() {
+  if (dirty) {
+    document.getElementById('modal-unsaved').classList.add('show');
+  } else {
+    showPageList();
   }
 }
 
-// Minimal 6x8 pixel font (ASCII 0x20-0x7E)
-// Each char is 6 columns, each column is 8 bits (LSB=top)
-const FONT={};
-function initFont(){
-  // We'll use canvas measureText as fallback - draw with a tiny offscreen canvas
-  const c=document.createElement('canvas');
-  c.width=6;c.height=8;
-  const ctx=c.getContext('2d');
-  ctx.font='8px monospace';
-  ctx.textBaseline='top';
-  for(let i=0x20;i<=0x7E;i++){
-    ctx.clearRect(0,0,6,8);
-    ctx.fillStyle='#fff';
-    ctx.fillText(String.fromCharCode(i),0,0);
-    const d=ctx.getImageData(0,0,6,8).data;
-    const cols=new Uint8Array(6);
-    for(let x=0;x<6;x++){
-      let col=0;
-      for(let y=0;y<8;y++){
-        if(d[(y*6+x)*4+3]>128) col|=(1<<y);
-      }
-      cols[x]=col;
-    }
-    FONT[i]=cols;
-  }
-}
-initFont();
-
-function drawChar(ctx, x, y, ch) {
-  const f = FONT[ch];
-  if (!f) return;
-  for (let cx = 0; cx < 6; cx++) {
-    for (let cy = 0; cy < 8; cy++) {
-      if (f[cx] & (1 << cy)) {
-        ctx.fillRect(x + cx, y + cy, 1, 1);
-      }
-    }
-  }
+async function saveAndExit() {
+  document.getElementById('modal-unsaved').classList.remove('show');
+  await savePage();
+  showPageList();
 }
 
-// API
-const API = '';  // same origin
+function discardAndExit() {
+  document.getElementById('modal-unsaved').classList.remove('show');
+  dirty = false;
+  showPageList();
+}
 
+// ===== API =====
 async function api(method, path, body) {
   const opts = { method, headers: {} };
   if (body !== undefined) {
     opts.headers['Content-Type'] = 'application/json';
     opts.body = JSON.stringify(body);
   }
-  const r = await fetch(API + path, opts);
+  const r = await fetch(path, opts);
   if (!r.ok) throw new Error(r.statusText);
   return r.json();
 }
@@ -395,14 +582,15 @@ function status(msg, err) {
   if (!err) setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 2000);
 }
 
-// Pages
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ===== PAGE LIST =====
 async function loadPageList() {
   try {
     pages = await api('GET', '/api/pages');
     renderPageList();
-    if (pages.length > 0) {
-      await loadPageData(pages[0].page_num);
-    }
   } catch(e) {
     status('Failed to load pages: ' + e.message, true);
   }
@@ -413,17 +601,18 @@ function renderPageList() {
   el.innerHTML = '';
   pages.forEach(p => {
     const d = document.createElement('div');
-    d.className = 'pitem' + (p.page_num === pageNum ? ' active' : '');
-    d.innerHTML = `<span>${p.page_num}: ${esc(p.title || 'Untitled')}</span><span class="del" onclick="event.stopPropagation();deletePage(${p.page_num})">&times;</span>`;
-    d.addEventListener('click', () => loadPageData(p.page_num));
+    d.className = 'page-entry';
+    d.innerHTML = `<span class="pnum">${p.page_num}</span>`
+      + `<span class="ptitle">${esc(p.title || 'Untitled')}</span>`
+      + `<span class="pactions">`
+      + `<button class="nav" onclick="event.stopPropagation();showEditor(${p.page_num})">Edit</button>`
+      + `<button class="danger" onclick="event.stopPropagation();deletePage(${p.page_num})">&times;</button>`
+      + `</span>`;
     el.appendChild(d);
   });
 }
 
-function esc(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
+// ===== PAGE DATA =====
 async function loadPageData(num) {
   try {
     const d = await api('GET', `/api/page/${num}`);
@@ -432,10 +621,11 @@ async function loadPageData(num) {
     pageTitle = d.title;
     for (let i = 0; i < 160; i++) cells[i] = d.cells[i] || 0;
     dirty = false;
-    updatePageSettings();
+    document.getElementById('pg-num').value = pageNum;
+    document.getElementById('pg-title').value = pageTitle;
+    selIdx = 0;
+    selectCell(0);
     renderGrid();
-    renderPreview();
-    renderPageList();
     status(`Loaded page ${num}`);
   } catch(e) {
     status('Load failed: ' + e.message, true);
@@ -445,10 +635,13 @@ async function loadPageData(num) {
 async function savePage() {
   pageNum = parseInt(document.getElementById('pg-num').value) || pageNum;
   pageTitle = document.getElementById('pg-title').value || pageTitle;
+
+  // Auto-compute flags from cell contents
   pageFlags = 0;
-  if (document.getElementById('fl-autocycle').checked) pageFlags |= 1;
-  if (document.getElementById('fl-poll').checked) pageFlags |= 2;
-  if (document.getElementById('fl-visitor').checked) pageFlags |= 4;
+  for (let i = 0; i < 160; i++) {
+    if (cells[i] === 0xF1 || cells[i] === 0xF2) pageFlags |= 2; // poll
+    if (cells[i] === 0xF0) pageFlags |= 4; // visitor
+  }
 
   try {
     await api('PUT', `/api/page/${pageNum}`, {
@@ -458,33 +651,48 @@ async function savePage() {
       cells: Array.from(cells)
     });
     dirty = false;
-    status('Saved!');
-    await loadPageList();
+    // Flash save button green
+    const saveBtn = document.querySelector('.top-bar .primary');
+    saveBtn.classList.add('saved');
+    saveBtn.textContent = 'Saved!';
+    setTimeout(() => { saveBtn.classList.remove('saved'); saveBtn.textContent = 'Save'; }, 2500);
   } catch(e) {
     status('Save failed: ' + e.message, true);
   }
 }
 
 async function addPage() {
-  // Find next available number
   const used = new Set(pages.map(p => p.page_num));
   let num = 100;
   while (used.has(num) && num < 256) num++;
   if (num > 255) { status('No free page numbers', true); return; }
 
-  cells.fill(0x20); // spaces
-  pageNum = num;
-  pageTitle = 'New Page';
-  pageFlags = 0;
-  updatePageSettings();
-  renderGrid();
-  renderPreview();
-  dirty = true;
-  status(`New page ${num} - edit and save`);
+  // Create a blank page via API, then open editor
+  try {
+    await api('PUT', `/api/page/${num}`, {
+      page_num: num,
+      flags: 0,
+      title: 'New Page',
+      cells: new Array(160).fill(0x20)
+    });
+    showEditor(num);
+  } catch(e) {
+    status('Failed to create page: ' + e.message, true);
+  }
 }
 
+let delPending = 0;
+let delTimer = null;
 async function deletePage(num) {
-  if (!confirm(`Delete page ${num}?`)) return;
+  if (delPending !== num) {
+    delPending = num;
+    status(`Tap X again to delete page ${num}`);
+    clearTimeout(delTimer);
+    delTimer = setTimeout(() => { delPending = 0; }, 3000);
+    return;
+  }
+  clearTimeout(delTimer);
+  delPending = 0;
   try {
     await api('DELETE', `/api/page/${num}`);
     status(`Deleted page ${num}`);
@@ -494,21 +702,13 @@ async function deletePage(num) {
   }
 }
 
-function updatePageSettings() {
-  document.getElementById('pg-num').value = pageNum;
-  document.getElementById('pg-title').value = pageTitle;
-  document.getElementById('fl-autocycle').checked = !!(pageFlags & 1);
-  document.getElementById('fl-poll').checked = !!(pageFlags & 2);
-  document.getElementById('fl-visitor').checked = !!(pageFlags & 4);
-}
-
-// Node settings
+// ===== NODE SETTINGS =====
 async function loadNode() {
   try {
     const d = await api('GET', '/api/config');
     document.getElementById('nd-name').value = d.name;
     document.getElementById('nd-cat').value = d.category;
-    document.getElementById('nd-id').textContent = 'Node ID: ' + (d.node_id || '').toUpperCase();
+    document.getElementById('nd-id').textContent = (d.node_id || '').toUpperCase();
   } catch(e) {}
 }
 
@@ -518,16 +718,14 @@ async function saveNode() {
       name: document.getElementById('nd-name').value,
       category: parseInt(document.getElementById('nd-cat').value)
     });
-    status('Node settings saved!');
+    status('Node saved!');
   } catch(e) {
     status('Save failed: ' + e.message, true);
   }
 }
 
-// Init
-selectCell(0);
+// ===== INIT =====
 renderGrid();
-renderPreview();
 loadPageList();
 loadNode();
 </script>

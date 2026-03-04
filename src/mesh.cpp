@@ -1,12 +1,12 @@
 #include "mesh.h"
 #include "nav.h"
+#include "react.h"
 #include "radio.h"
 #include "protocol.h"
 #include "config.h"
 #include "storage.h"
 #include "page.h"
 #include <Arduino.h>
-#include <LittleFS.h>
 
 // Timing
 #define ANNOUNCE_INTERVAL  60000   // 1 minute
@@ -30,6 +30,7 @@ static uint32_t bootAnnounceTime = 0;  // randomized boot delay
 static bool requestPending = false;
 static uint32_t requestTime = 0;
 static Page responsePage;
+static ReactTally responseTally;
 static bool responseReady = false;
 static bool responseTimedOut = false;
 
@@ -88,40 +89,7 @@ static void evictStaleNeighbors() {
     }
 }
 
-// --- Cache ---
 
-static void cachePath(uint32_t node_id, uint8_t page_num, char* buf, size_t bufLen) {
-    snprintf(buf, bufLen, "/cache/%08X", node_id);
-    LittleFS.mkdir(buf);
-    snprintf(buf, bufLen, "/cache/%08X/%03d.bin", node_id, page_num);
-}
-
-static bool cachePageData(uint32_t node_id, const ResponsePacket& resp) {
-    Page p;
-    memcpy(p.cells, resp.cells, PAGE_CELLS);
-    p.page_num = resp.page_num;
-    p.flags = resp.flags;
-    memcpy(p.title, resp.title, 16);
-
-    char path[40];
-    cachePath(node_id, resp.page_num, path, sizeof(path));
-    File f = LittleFS.open(path, "w");
-    if (!f) return false;
-    f.write((const uint8_t*)&p, sizeof(Page));
-    f.close();
-    return true;
-}
-
-bool meshLoadCachedPage(uint32_t node_id, uint8_t page_num, Page& page) {
-    char path[40];
-    cachePath(node_id, page_num, path, sizeof(path));
-    File f = LittleFS.open(path, "r");
-    if (!f) return false;
-    if (f.size() != sizeof(Page)) { f.close(); return false; }
-    f.read((uint8_t*)&page, sizeof(Page));
-    f.close();
-    return true;
-}
 
 // --- Send ---
 
@@ -176,11 +144,20 @@ static void handleRequest(const RequestPacket& req) {
     }
 
     ResponsePacket resp;
+    memset(&resp, 0, sizeof(resp));
     initHeader(resp.hdr, PKT_RESPONSE, cfg.node_id, req.hdr.src);
     memcpy(resp.cells, p.cells, PAGE_CELLS);
     resp.page_num = p.page_num;
     resp.flags = p.flags;
     memcpy(resp.title, p.title, 16);
+
+    // Include tally data if page has interactive elements
+    ReactTally tally;
+    if (reactGetTally(p.page_num, tally)) {
+        resp.visits = tally.visits;
+        resp.votes_a = tally.votes_a;
+        resp.votes_b = tally.votes_b;
+    }
 
     radioSend((uint8_t*)&resp, sizeof(resp));
     Serial.printf("TX RESPONSE page %d to %08X\n", p.page_num, req.hdr.src);
@@ -190,19 +167,30 @@ static void handleResponse(const ResponsePacket& resp) {
     NodeConfig& cfg = configGet();
     if (resp.hdr.dst != cfg.node_id) return;
 
-    // Cache it
-    cachePageData(resp.hdr.src, resp);
-
     // If we have a pending request, fulfill it
     if (requestPending) {
         memcpy(responsePage.cells, resp.cells, PAGE_CELLS);
         responsePage.page_num = resp.page_num;
         responsePage.flags = resp.flags;
         memcpy(responsePage.title, resp.title, 16);
+        responseTally.visits = resp.visits;
+        responseTally.votes_a = resp.votes_a;
+        responseTally.votes_b = resp.votes_b;
         responseReady = true;
         requestPending = false;
         Serial.printf("RX RESPONSE page %d from %08X\n", resp.page_num, resp.hdr.src);
     }
+}
+
+static void handleReact(const ReactPacket& react) {
+    NodeConfig& cfg = configGet();
+    if (react.hdr.dst != cfg.node_id) return;
+
+    // Only accept reacts for pages we own
+    Page p;
+    if (!storageLoadPage(react.page_num, p)) return;
+
+    reactHandleIncoming(react.page_num, react.hdr.src, react.react_type);
 }
 
 // --- Relay ---
@@ -258,6 +246,10 @@ static void processPacket(const uint8_t* buf, uint8_t len, float rssi) {
                 if (len >= sizeof(ResponsePacket))
                     handleResponse(*(const ResponsePacket*)buf);
                 break;
+            case PKT_REACT:
+                if (len >= sizeof(ReactPacket))
+                    handleReact(*(const ReactPacket*)buf);
+                break;
         }
     }
 
@@ -276,11 +268,6 @@ void meshInit() {
     responseReady = false;
     relayLen = 0;
     bootAnnounceTime = ANNOUNCE_BOOT_DELAY + random(0, 3000);  // 5-8s jitter
-
-    // Ensure cache dir exists
-    if (!LittleFS.exists("/cache")) {
-        LittleFS.mkdir("/cache");
-    }
 }
 
 void meshLoop() {
@@ -349,9 +336,10 @@ bool meshRequestPage(uint32_t node_id, uint8_t page_num) {
     return ok;
 }
 
-bool meshGetResponse(Page& page, bool& timedOut) {
+bool meshGetResponse(Page& page, bool& timedOut, ReactTally* tally) {
     if (responseReady) {
         page = responsePage;
+        if (tally) *tally = responseTally;
         responseReady = false;
         timedOut = false;
         return true;

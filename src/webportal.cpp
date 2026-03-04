@@ -3,6 +3,7 @@
 #include "config.h"
 #include "render.h"
 #include "nav.h"
+#include "react.h"
 #include "page.h"
 #include <Arduino.h>
 #include <WiFi.h>
@@ -119,7 +120,7 @@ static void setupRoutes() {
             JsonArray cells = doc["cells"];
             if (cells && cells.size() == PAGE_CELLS) {
                 for (int i = 0; i < PAGE_CELLS; i++) {
-                    p.cells[i] = cells[i];
+                    p.cells[i] = (uint8_t)(cells[i].as<int>());
                 }
             }
 
@@ -139,6 +140,23 @@ static void setupRoutes() {
         } else {
             req->send(404, "text/plain", "Not found");
         }
+    });
+
+    // GET /api/react/:n — get react tally for a page
+    server.on("^\\/api\\/react\\/(\\d+)$", HTTP_GET, [](AsyncWebServerRequest* req) {
+        int num = req->pathArg(0).toInt();
+        ReactTally tally;
+        if (!reactGetTally(num, tally)) {
+            req->send(200, "application/json", "{\"visits\":0,\"votes_a\":0,\"votes_b\":0}");
+            return;
+        }
+        JsonDocument doc;
+        doc["visits"] = tally.visits;
+        doc["votes_a"] = tally.votes_a;
+        doc["votes_b"] = tally.votes_b;
+        String out;
+        serializeJson(doc, out);
+        req->send(200, "application/json", out);
     });
 
     // Catch-all for captive portal

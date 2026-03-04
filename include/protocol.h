@@ -37,13 +37,16 @@ struct __attribute__((packed)) RequestPacket {
     uint8_t  page_num;
 };
 
-// RESPONSE: 190 bytes total
+// RESPONSE: 196 bytes total
 struct __attribute__((packed)) ResponsePacket {
     PacketHeader hdr;     // 12 bytes
     uint8_t  cells[160];
     uint8_t  page_num;
     uint8_t  flags;
     char     title[16];
+    uint16_t visits;      // tally: visitor count
+    uint16_t votes_a;     // tally: vote A count
+    uint16_t votes_b;     // tally: vote B count
 };
 
 // REACT: 14 bytes total

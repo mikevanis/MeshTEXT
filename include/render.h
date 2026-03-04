@@ -1,5 +1,6 @@
 #pragma once
 #include "page.h"
+#include "react.h"
 
 // Cell dimensions in pixels
 #define CELL_W 6
@@ -17,6 +18,6 @@
 //  Rows y+6..y+7: unused (2px gap at bottom)
 
 void renderInit();
-void renderPage(const Page& page);
+void renderPage(const Page& page, const ReactTally* tally = nullptr, int16_t selectedCellIdx = -1);
 void renderDirectory(const char* titles[], uint8_t count, uint8_t selected);
 void renderMessage(const char* line1, const char* line2 = nullptr);

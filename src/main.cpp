@@ -9,6 +9,7 @@
 #include "radio.h"
 #include "protocol.h"
 #include "mesh.h"
+#include "react.h"
 
 static void createDefaultPage() {
     Page p;
@@ -182,6 +183,7 @@ void setup() {
     }
 
     meshInit();
+    reactInit();
 
     // Create default page on first boot
     PageListEntry list[1];

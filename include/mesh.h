@@ -1,5 +1,6 @@
 #pragma once
 #include <stdint.h>
+#include "react.h"
 
 #define MAX_NEIGHBORS 32
 
@@ -25,9 +26,6 @@ uint8_t meshGetNeighbors(Neighbor** list);
 bool meshRequestPage(uint32_t node_id, uint8_t page_num);
 
 // Check if a response is pending/ready
-// Returns true if a response arrived, fills page data
+// Returns true if a response arrived, fills page data and tally
 struct Page;
-bool meshGetResponse(Page& page, bool& timedOut);
-
-// Cache access
-bool meshLoadCachedPage(uint32_t node_id, uint8_t page_num, Page& page);
+bool meshGetResponse(Page& page, bool& timedOut, ReactTally* tally = nullptr);

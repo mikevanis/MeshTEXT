@@ -39,25 +39,136 @@ static void drawBlockCell(int16_t x, int16_t y, uint8_t cell) {
     }
 }
 
-void renderPage(const Page& page) {
+// Draw a number starting at cell position, flowing right. Returns cells consumed.
+static uint8_t drawNumber(int16_t x, int16_t y, uint16_t num) {
+    char buf[6];
+    snprintf(buf, sizeof(buf), "%d", num);
+    uint8_t len = strlen(buf);
+    for (uint8_t i = 0; i < len; i++) {
+        u8g2.drawGlyph(x + i * CELL_W, y + 7, buf[i]);
+    }
+    return len;
+}
+
+// Draw a vote button
+// Unselected: letter with underline (visible but passive)
+// Selected: fully inverted (white box, black letter = "this is active")
+static void drawButton(int16_t x, int16_t y, char label, bool selected) {
+    if (selected) {
+        u8g2.drawBox(x, y, CELL_W, CELL_H);
+        u8g2.setDrawColor(0);
+        u8g2.drawGlyph(x, y + 7, label);
+        u8g2.setDrawColor(1);
+    } else {
+        u8g2.drawGlyph(x, y + 7, label);
+        u8g2.drawHLine(x, y + CELL_H - 1, CELL_W);
+    }
+}
+
+// Draw a link cell: arrow + page number, flowing right. Returns cells consumed.
+static uint8_t drawLink(int16_t x, int16_t y, uint8_t targetPage, bool selected) {
+    char buf[6];
+    snprintf(buf, sizeof(buf), "%d", targetPage);
+    uint8_t numLen = strlen(buf);
+    uint8_t totalCells = 1 + numLen;  // arrow + digits
+
+    if (selected) {
+        // Inverted background across all cells
+        u8g2.drawBox(x, y, totalCells * CELL_W, CELL_H);
+        u8g2.setDrawColor(0);
+        u8g2.drawGlyph(x, y + 7, '>');  // arrow character
+        for (uint8_t i = 0; i < numLen; i++) {
+            u8g2.drawGlyph(x + (1 + i) * CELL_W, y + 7, buf[i]);
+        }
+        u8g2.setDrawColor(1);
+    } else {
+        u8g2.drawGlyph(x, y + 7, '>');
+        for (uint8_t i = 0; i < numLen; i++) {
+            u8g2.drawGlyph(x + (1 + i) * CELL_W, y + 7, buf[i]);
+        }
+        // Underline across all cells
+        u8g2.drawHLine(x, y + CELL_H - 1, totalCells * CELL_W);
+    }
+    return totalCells;
+}
+
+void renderPage(const Page& page, const ReactTally* tally, int16_t selectedCellIdx) {
     u8g2.clearBuffer();
 
+    // First pass: find dynamic cells and figure out skip positions
+    bool skip[PAGE_CELLS] = {};
+
+    if (tally) {
+        for (uint8_t i = 0; i < PAGE_CELLS; i++) {
+            uint8_t cell = page.cells[i];
+            uint16_t val = 0;
+            if (cell == CELL_VISITOR_COUNT) val = tally->visits;
+            else if (cell == CELL_VOTE_A_COUNT) val = tally->votes_a;
+            else if (cell == CELL_VOTE_B_COUNT) val = tally->votes_b;
+            else continue;
+
+            char buf[6];
+            uint8_t len = snprintf(buf, sizeof(buf), "%d", val);
+            uint8_t row = i / PAGE_COLS;
+            for (uint8_t d = 1; d < len && (i + d) / PAGE_COLS == row; d++) {
+                skip[i + d] = true;
+            }
+        }
+    }
+
+    // Mark link target cells as skip (cell after CELL_LINK is page number, not rendered)
+    for (uint8_t i = 0; i < PAGE_CELLS; i++) {
+        if (page.cells[i] == CELL_LINK && i + 1 < PAGE_CELLS) {
+            // Skip the target byte cell
+            skip[i + 1] = true;
+            // Also skip cells used by the rendered digits
+            uint8_t target = page.cells[i + 1];
+            char buf[6];
+            uint8_t numLen = snprintf(buf, sizeof(buf), "%d", target);
+            uint8_t row = i / PAGE_COLS;
+            // Skip: arrow(1) + digits(numLen) - 1 for the link cell itself = numLen cells after link+target
+            for (uint8_t d = 2; d < 1 + numLen && (i + d) / PAGE_COLS == row; d++) {
+                skip[i + d] = true;
+            }
+        }
+    }
+
+    // Render
     for (uint8_t row = 0; row < PAGE_ROWS; row++) {
         for (uint8_t col = 0; col < PAGE_COLS; col++) {
-            uint8_t cell = page.cells[row * PAGE_COLS + col];
+            uint8_t idx = row * PAGE_COLS + col;
+            if (skip[idx]) continue;
+
+            uint8_t cell = page.cells[idx];
             int16_t x = GRID_X_OFFSET + col * CELL_W;
             int16_t y = row * CELL_H;
 
-            if (cell & 0x80) {
-                // Block cell (0x80-0xBF: bits 0-5 are the block pattern)
-                drawBlockCell(x, y, cell & 0x3F);
-            } else {
-                // Text cell: printable ASCII
-                if (cell >= 0x20 && cell <= 0x7E) {
-                    // u8g2 drawGlyph y is baseline; for 6x8 font, baseline ~= y+7
-                    u8g2.drawGlyph(x, y + 7, cell);
+            if (cell == CELL_LINK && idx + 1 < PAGE_CELLS) {
+                uint8_t target = page.cells[idx + 1];
+                bool selected = (selectedCellIdx == (int16_t)idx);
+                drawLink(x, y, target, selected);
+            } else if (IS_DYNAMIC_CELL(cell) && tally) {
+                switch (cell) {
+                    case CELL_VISITOR_COUNT:
+                        drawNumber(x, y, tally->visits);
+                        break;
+                    case CELL_VOTE_A_BTN:
+                        drawButton(x, y, 'A', selectedCellIdx == (int16_t)idx);
+                        break;
+                    case CELL_VOTE_B_BTN:
+                        drawButton(x, y, 'B', selectedCellIdx == (int16_t)idx);
+                        break;
+                    case CELL_VOTE_A_COUNT:
+                        drawNumber(x, y, tally->votes_a);
+                        break;
+                    case CELL_VOTE_B_COUNT:
+                        drawNumber(x, y, tally->votes_b);
+                        break;
                 }
-                // else: control chars / 0x00 = blank, draw nothing
+            } else if (cell >= 0x80 && cell <= 0xBF) {
+                drawBlockCell(x, y, cell & 0x3F);
+            } else if (cell >= 0x20 && cell <= 0x7E) {
+                u8g2.drawGlyph(x, y + 7, cell);
             }
         }
     }
