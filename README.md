@@ -28,16 +28,16 @@ MeshText is a peer-to-peer teletext system built on **ESP32 + LoRa**. Every node
 Pages are 20×8 grids of characters and chunky block graphics — just like 1970s teletext.
 
 ```
-┌──────────────────────────────────┐
-│  ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄    │
-│  █  WELCOME TO MESHTEXT v0.1 █   │
-│  ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀    │
-│                                  │
-│  Peer-to-peer teletext mesh      │
-│  on ESP32 + LoRa                 │
-│                                  │
-│  No internet. No servers.        │
-└──────────────────────────────────┘
+┌─────────────────────────────────┐
+│  ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄   │
+│  █ WELCOME TO MESHTEXT v0.1 █   │
+│  ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀   │
+│                                 │
+│  Peer-to-peer teletext mesh     │
+│  on ESP32 + LoRa                │
+│                                 │
+│  No internet. No servers.       │
+└─────────────────────────────────┘
         128x64 OLED output
 ```
 
