@@ -123,6 +123,12 @@ Block graphic bit layout:
 
 20 columns × 8 rows = 160 cells = 160 bytes per page. Same technique as BBC Ceefax and ITV Oracle.
 
+## Installing firmware
+
+If you just want to install the firmware on a device without building on PlatformIO, open the flashing tool on Chrome, Opera, or Edge.
+
+https://mikevanis.github.io/MeshTEXT/
+
 ## Building
 
 Requires [PlatformIO](https://platformio.org/).

@@ -55,10 +55,27 @@ jobs:
           # Flash page
           cp flash/index.html "$DEPLOY/"
 
-      - name: Generate manifest.json
+      - name: Generate manifests
         run: |
           TAG="${GITHUB_REF_NAME}"
+
           cat > deploy/manifest.json <<EOF
+          {
+            "name": "MeshText",
+            "version": "${TAG}",
+            "builds": [
+              {
+                "chipFamily": "ESP32-S3",
+                "improv": false,
+                "parts": [
+                  { "path": "firmware.bin", "offset": "0x10000" }
+                ]
+              }
+            ]
+          }
+          EOF
+
+          cat > deploy/manifest-full.json <<EOF
           {
             "name": "MeshText",
             "version": "${TAG}",
