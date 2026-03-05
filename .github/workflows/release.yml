@@ -24,11 +24,9 @@ jobs:
         run: pip install platformio
 
       - name: Build firmware
-        run: |
-          VERSION="${GITHUB_REF_NAME}"
-          pio run -e heltec_wifi_lora_32_V3
+        run: pio run
         env:
-          PLATFORMIO_BUILD_FLAGS: -DASYNCWEBSERVER_REGEX -DMESHTEXT_VERSION=\\\"${{ github.ref_name }}\\\"
+          MESHTEXT_VERSION: ${{ github.ref_name }}
 
       - name: Get flash offsets from partition table
         id: partitions

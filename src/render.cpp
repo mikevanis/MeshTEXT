@@ -274,7 +274,8 @@ void renderSplash() {
     }
 
     // Row 7: version string centered
-    const char* ver = MESHTEXT_VERSION;
+    // MESHTEXT_VERSION comes from env var; empty string means local/dev build
+    const char* ver = (sizeof(MESHTEXT_VERSION) > 1) ? MESHTEXT_VERSION : "dev";
     uint8_t vlen = strlen(ver);
     uint8_t voff = (PAGE_COLS - vlen) / 2;
     for (uint8_t i = 0; ver[i] && (voff + i) < PAGE_COLS; i++) {
