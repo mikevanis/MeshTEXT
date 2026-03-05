@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MeshText Flasher</title>
+<script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a0a;
+    color: #e0e0e0;
+    font-family: "Courier New", Courier, monospace;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 2rem;
+  }
+  .container {
+    max-width: 480px;
+    text-align: center;
+  }
+  .logo {
+    font-size: 1.1rem;
+    line-height: 1.2;
+    color: #00ff88;
+    white-space: pre;
+    margin-bottom: 1.5rem;
+  }
+  h1 {
+    font-size: 1.4rem;
+    color: #ffffff;
+    margin-bottom: 0.5rem;
+  }
+  .tagline {
+    color: #888;
+    font-size: 0.85rem;
+    margin-bottom: 2rem;
+  }
+  .install-box {
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 2rem;
+    margin-bottom: 1.5rem;
+    background: #111;
+  }
+  .install-box p {
+    margin-bottom: 1rem;
+    font-size: 0.85rem;
+    color: #aaa;
+  }
+  esp-web-install-button {
+    display: inline-block;
+  }
+  esp-web-install-button button {
+    background: #00ff88;
+    color: #0a0a0a;
+    border: none;
+    padding: 0.8rem 2rem;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  esp-web-install-button button:hover {
+    background: #33ffaa;
+  }
+  .note {
+    font-size: 0.75rem;
+    color: #666;
+    line-height: 1.5;
+  }
+  .note a {
+    color: #00ff88;
+    text-decoration: none;
+  }
+  .note a:hover {
+    text-decoration: underline;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="logo">  ___  ___          _   _____          _
+  |  \/  |         | | |_   _|        | |
+  | .  . | ___  ___| |__ | | _____  _| |_
+  | |\/| |/ _ \/ __| '_ \| |/ _ \ \/ / __|
+  | |  | |  __/\__ \ | | | |  __/>  <| |_
+  \_|  |_/\___||___/_| |_\_/\___/_/\_\\__|</div>
+
+  <h1>MeshText Firmware</h1>
+  <p class="tagline">Peer-to-peer teletext mesh on ESP32 + LoRa</p>
+
+  <div class="install-box">
+    <p>Connect your Heltec LoRa 32 V3 via USB and click Install.</p>
+    <esp-web-install-button manifest="manifest.json">
+      <button slot="activate">Install Firmware</button>
+      <span slot="unsupported">
+        Your browser does not support Web Serial.<br>
+        Use Chrome or Edge on desktop.
+      </span>
+      <span slot="not-allowed">
+        Serial access not allowed.<br>
+        Make sure the page is served over HTTPS.
+      </span>
+    </esp-web-install-button>
+  </div>
+
+  <p class="note">
+    Requires Chrome or Edge with Web Serial API support.<br>
+    Source code on <a href="https://github.com/meshtext/MeshText">GitHub</a>.
+  </p>
+</div>
+</body>
+</html>

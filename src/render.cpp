@@ -208,6 +208,82 @@ void renderDirectory(const char* titles[], uint8_t count, uint8_t selected) {
     u8g2.sendBuffer();
 }
 
+void renderSplash() {
+    // Block-cell art splash: "MESH" rows 0-2, "TEXT" rows 4-6, "v0.1" row 7
+    // Each letter is 3 cells wide × 3 cells tall, with 1-cell gaps, starting at col 3
+    // Block cell = 0x80 | bitmask, where bits 0-5 map to 2×3 sub-pixel grid
+
+    // Letter definitions: [3 rows][3 cols]
+    static const uint8_t L_M[3][3] = {
+        {0xBF, 0xBC, 0xBF},  // Top: full|bottom-fill|full (crossbar effect)
+        {0xBF, 0x80, 0xBF},  // Mid: pillars
+        {0x8F, 0x80, 0x8F},  // Bot: pillars (bottom sub-row empty for spacing)
+    };
+    static const uint8_t L_E[3][3] = {
+        {0xBF, 0x8F, 0x8F},  // Top: full bar
+        {0xBF, 0x8F, 0x80},  // Mid: half bar (crossbar)
+        {0x8F, 0x8F, 0x8F},  // Bot: full bar
+    };
+    static const uint8_t L_S[3][3] = {
+        {0xBF, 0x8F, 0x8F},  // Top: full bar
+        {0x8F, 0x8F, 0xBF},  // Mid: shifts right
+        {0x8F, 0x8F, 0x8F},  // Bot: full bar
+    };
+    static const uint8_t L_H[3][3] = {
+        {0xBF, 0x80, 0xBF},  // Top: pillars
+        {0xBF, 0x8F, 0xBF},  // Mid: crossbar
+        {0x8F, 0x80, 0x8F},  // Bot: pillars
+    };
+    static const uint8_t L_T[3][3] = {
+        {0x8F, 0xBF, 0x8F},  // Top: full bar
+        {0x80, 0xBF, 0x80},  // Mid: center pillar
+        {0x80, 0x8F, 0x80},  // Bot: center pillar
+    };
+    static const uint8_t L_X[3][3] = {
+        {0xAF, 0xB0, 0x9F},  // Top: diagonals in
+        {0xA0, 0xBF, 0x90},  // Mid: center cross
+        {0x8F, 0x80, 0x8F},  // Bot: diagonals out
+    };
+
+    // Letters for each word, with column offsets
+    // MESH at row 0, TEXT at row 4
+    // Each letter starts at col: 3, 7, 11, 15
+    struct LetterPlacement {
+        const uint8_t (*data)[3];
+        uint8_t col;
+        uint8_t row;
+    };
+    static const LetterPlacement letters[] = {
+        {L_M,  3, 0}, {L_E,  7, 0}, {L_S, 11, 0}, {L_H, 15, 0},  // MESH
+        {L_T,  3, 4}, {L_E,  7, 4}, {L_X, 11, 4}, {L_T, 15, 4},  // TEXT
+    };
+
+    Page splash;
+    memset(&splash, ' ', sizeof(splash.cells));
+    splash.page_num = 0;
+    splash.flags = 0;
+    splash.title[0] = '\0';
+
+    // Place block letters
+    for (const auto& lp : letters) {
+        for (uint8_t r = 0; r < 3; r++) {
+            for (uint8_t c = 0; c < 3; c++) {
+                splash.cells[(lp.row + r) * PAGE_COLS + lp.col + c] = lp.data[r][c];
+            }
+        }
+    }
+
+    // Row 7: version string centered
+    const char* ver = MESHTEXT_VERSION;
+    uint8_t vlen = strlen(ver);
+    uint8_t voff = (PAGE_COLS - vlen) / 2;
+    for (uint8_t i = 0; ver[i] && (voff + i) < PAGE_COLS; i++) {
+        splash.cells[7 * PAGE_COLS + voff + i] = ver[i];
+    }
+
+    renderPage(splash);
+}
+
 void renderDim() {
     u8g2.setContrast(0);
 }

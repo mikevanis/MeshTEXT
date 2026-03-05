@@ -169,6 +169,9 @@ void setup() {
     Serial.println("MeshText starting...");
 
     renderInit();
+    renderSplash();
+    delay(2000);
+
     buttonsInit();
 
     if (!storageInit()) {

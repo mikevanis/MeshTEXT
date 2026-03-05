@@ -29,6 +29,9 @@ void renderPage(const Page& page, const ReactTally* tally = nullptr, int16_t sel
 void renderDirectory(const char* titles[], uint8_t count, uint8_t selected);
 void renderMessage(const char* line1, const char* line2 = nullptr);
 
+// Splash screen (block-art logo, shown on boot)
+void renderSplash();
+
 // Display power management for standby mode
 void renderDim();
 void renderWake();

@@ -5,6 +5,7 @@
 #include "nav.h"
 #include "react.h"
 #include "page.h"
+#include "editor_html.h"
 #include <Arduino.h>
 #include <WiFi.h>
 #include <DNSServer.h>
@@ -18,9 +19,11 @@ static bool active = false;
 static char ssid[20];
 
 static void setupRoutes() {
-    // Serve editor from LittleFS
+    // Serve editor from PROGMEM (gzipped)
     server.on("/", HTTP_GET, [](AsyncWebServerRequest* req) {
-        req->send(LittleFS, "/editor.html", "text/html");
+        AsyncWebServerResponse* resp = req->beginResponse(200, "text/html", EDITOR_HTML_GZ, EDITOR_HTML_GZ_LEN);
+        resp->addHeader("Content-Encoding", "gzip");
+        req->send(resp);
     });
 
     // Captive portal redirects

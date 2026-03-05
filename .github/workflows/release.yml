@@ -1,0 +1,105 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install PlatformIO
+        run: pip install platformio
+
+      - name: Build firmware
+        run: |
+          VERSION="${GITHUB_REF_NAME}"
+          pio run -e heltec_wifi_lora_32_V3
+        env:
+          PLATFORMIO_BUILD_FLAGS: -DASYNCWEBSERVER_REGEX -DMESHTEXT_VERSION=\\\"${{ github.ref_name }}\\\"
+
+      - name: Get flash offsets from partition table
+        id: partitions
+        run: |
+          # Parse the partition table to find the LittleFS offset
+          PART_CSV=$(find ~/.platformio/packages/framework-arduinoespressif32 -name "default_8MB.csv" | head -1)
+          echo "Partition table: $PART_CSV"
+          cat "$PART_CSV"
+
+      - name: Collect binaries
+        run: |
+          BUILD=.pio/build/heltec_wifi_lora_32_V3
+          DEPLOY=deploy
+
+          mkdir -p "$DEPLOY"
+
+          # Firmware binaries
+          cp "$BUILD/firmware.bin" "$DEPLOY/"
+          cp "$BUILD/bootloader.bin" "$DEPLOY/"
+          cp "$BUILD/partitions.bin" "$DEPLOY/"
+
+          # boot_app0.bin from Arduino ESP32 framework
+          BOOT_APP0=$(find ~/.platformio/packages/framework-arduinoespressif32 -name "boot_app0.bin" | head -1)
+          cp "$BOOT_APP0" "$DEPLOY/"
+
+          # Flash page
+          cp flash/index.html "$DEPLOY/"
+
+      - name: Generate manifest.json
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          cat > deploy/manifest.json <<EOF
+          {
+            "name": "MeshText",
+            "version": "${TAG}",
+            "builds": [
+              {
+                "chipFamily": "ESP32-S3",
+                "improv": false,
+                "parts": [
+                  { "path": "bootloader.bin", "offset": "0x0" },
+                  { "path": "partitions.bin", "offset": "0x8000" },
+                  { "path": "boot_app0.bin", "offset": "0xe000" },
+                  { "path": "firmware.bin", "offset": "0x10000" }
+                ]
+              }
+            ]
+          }
+          EOF
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            deploy/firmware.bin
+            deploy/bootloader.bin
+            deploy/partitions.bin
+            deploy/boot_app0.bin
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: deploy
+
+  deploy-pages:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
