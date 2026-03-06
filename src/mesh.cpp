@@ -273,18 +273,7 @@ void meshInit() {
 void meshLoop() {
     uint32_t now = millis();
 
-    // Boot announce
-    if (!bootAnnounceSent && now >= bootAnnounceTime) {
-        sendAnnounce();
-        bootAnnounceSent = true;
-    }
-
-    // Periodic announce
-    if (bootAnnounceSent && (now - lastAnnounce) >= ANNOUNCE_INTERVAL) {
-        sendAnnounce();
-    }
-
-    // Receive packets
+    // Receive packets first — always prioritize listening
     uint8_t buf[MAX_PACKET_SIZE];
     float rssi;
     int len = radioReceive(buf, sizeof(buf), &rssi);
@@ -292,8 +281,23 @@ void meshLoop() {
         processPacket(buf, len, rssi);
     }
 
-    // Process pending relay
-    processRelay();
+    // Suppress all TX while waiting for a response — any transmission
+    // blocks the radio and could cause us to miss the incoming response
+    if (!requestPending) {
+        // Boot announce
+        if (!bootAnnounceSent && now >= bootAnnounceTime) {
+            sendAnnounce();
+            bootAnnounceSent = true;
+        }
+
+        // Periodic announce
+        if (bootAnnounceSent && (now - lastAnnounce) >= ANNOUNCE_INTERVAL) {
+            sendAnnounce();
+        }
+
+        // Process pending relay
+        processRelay();
+    }
 
     // Evict stale neighbors periodically
     static uint32_t lastEvict = 0;
