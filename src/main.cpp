@@ -171,6 +171,8 @@ void setup() {
     renderInit();
     renderSplash();
     delay(2000);
+    renderHelpScreen();
+    delay(4000);
 
     buttonsInit();
 

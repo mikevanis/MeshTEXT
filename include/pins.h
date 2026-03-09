@@ -17,5 +17,9 @@
 #define LORA_MOSI 10
 #define LORA_MISO 11
 
+// Battery voltage (ADC)
+#define VBAT_PIN      1   // ADC1_CH0, voltage-divided battery input
+#define ADC_CTRL_PIN  37  // LOW to enable battery measurement circuit
+
 // Buttons
 #define BTN_A      0  // USER button (active low)

@@ -31,6 +31,7 @@ void renderMessage(const char* line1, const char* line2 = nullptr);
 
 // Splash screen (block-art logo, shown on boot)
 void renderSplash();
+void renderHelpScreen();
 
 // Display power management for standby mode
 void renderDim();

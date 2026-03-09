@@ -87,6 +87,46 @@
     border-color: #888;
     background: transparent;
   }
+  .guide {
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 1.5rem 2rem;
+    margin-bottom: 1rem;
+    background: #111;
+    text-align: left;
+  }
+  .guide h2 {
+    font-size: 1rem;
+    color: #fff;
+    margin-bottom: 1rem;
+    text-align: center;
+  }
+  .guide h3 {
+    font-size: 0.85rem;
+    color: #00ff88;
+    margin-top: 1rem;
+    margin-bottom: 0.4rem;
+  }
+  .guide p, .guide li {
+    font-size: 0.8rem;
+    color: #aaa;
+    line-height: 1.6;
+  }
+  .guide ul {
+    padding-left: 1.2rem;
+  }
+  .guide .controls {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.2rem 1rem;
+    font-size: 0.8rem;
+  }
+  .guide .controls dt {
+    color: #fff;
+  }
+  .guide .controls dd {
+    color: #aaa;
+  }
   .note {
     font-size: 0.75rem;
     color: #666;
@@ -150,6 +190,44 @@
       <span slot="unsupported"></span>
       <span slot="not-allowed"></span>
     </esp-web-install-button>
+  </div>
+
+  <div class="guide">
+    <h2>Getting Started</h2>
+
+    <h3>Controls</h3>
+    <p>There's one button (the USER button, next to USB):</p>
+    <dl class="controls">
+      <dt>Click</dt>        <dd>Scroll through items</dd>
+      <dt>Double-click</dt>  <dd>Select / open</dd>
+      <dt>Hold</dt>          <dd>Go back</dd>
+      <dt>Hold 3 seconds</dt><dd>Enter / exit edit mode</dd>
+    </dl>
+
+    <h3>Browsing</h3>
+    <ul>
+      <li>On boot you'll see a directory of pages</li>
+      <li>Click to scroll, double-click to open a page</li>
+      <li>Nearby MeshText nodes appear automatically</li>
+      <li>Select a remote node to browse their pages</li>
+    </ul>
+
+    <h3>Creating Pages</h3>
+    <ul>
+      <li>Hold the button for 3 seconds to start WiFi edit mode</li>
+      <li>Connect your phone to the "MeshTxt-XXXX" WiFi network</li>
+      <li>A page editor opens in your browser</li>
+      <li>Create pages with text and block graphics</li>
+      <li>Hold 3 seconds again or reset board to exit edit mode</li>
+    </ul>
+
+    <h3>How it Works</h3>
+    <p>
+      Every node broadcasts its presence over LoRa radio.
+      When you view another node's page, your device requests it
+      over the mesh. Nodes in between automatically relay messages
+      for each other.
+    </p>
   </div>
 
   <p class="note">

@@ -13,6 +13,69 @@ static U8G2_SSD1306_128X64_NONAME_F_SW_I2C u8g2(
     /* reset=*/ OLED_RST
 );
 
+// Battery voltage reading
+static float batteryVoltage = 0;
+static uint32_t lastBatteryRead = 0;
+#define BATTERY_READ_INTERVAL 10000  // 10 seconds
+
+static void batteryInit() {
+    pinMode(ADC_CTRL_PIN, OUTPUT);
+    digitalWrite(ADC_CTRL_PIN, LOW);   // disable measurement circuit
+    analogSetAttenuation(ADC_11db);
+}
+
+static float batteryRead() {
+    digitalWrite(ADC_CTRL_PIN, HIGH);  // enable measurement (V3.2: HIGH to enable)
+    delay(2);
+    int raw = analogRead(VBAT_PIN);
+    digitalWrite(ADC_CTRL_PIN, LOW);   // disable measurement
+    return (raw / 4095.0f) * 3.3f * 5.6f;  // voltage divider correction
+}
+
+// Returns 0-4 bar level from voltage
+static uint8_t batteryLevel(float v) {
+    if (v >= 4.0f) return 4;
+    if (v >= 3.8f) return 3;
+    if (v >= 3.6f) return 2;
+    if (v >= 3.4f) return 1;
+    return 0;
+}
+
+// Draw battery icon at top-right of screen (14x8 px)
+static void drawBattery() {
+    uint32_t now = millis();
+    if (now - lastBatteryRead > BATTERY_READ_INTERVAL || lastBatteryRead == 0) {
+        batteryVoltage = batteryRead();
+        lastBatteryRead = now;
+        Serial.printf("Battery: %.2fV\n", batteryVoltage);
+    }
+
+    uint8_t level = batteryLevel(batteryVoltage);
+
+    // Percentage text to the left of icon
+    int pct = (int)((batteryVoltage - 3.0f) / 1.2f * 100.0f);
+    if (pct < 0) pct = 0;
+    if (pct > 100) pct = 100;
+    char buf[5];
+    snprintf(buf, sizeof(buf), "%d%%", pct);
+    u8g2.setFont(u8g2_font_5x7_tr);
+    uint8_t tw = strlen(buf) * 5;
+    int16_t x = 127 - 14 - tw - 2;  // text position
+    u8g2.drawStr(x, 7, buf);
+    u8g2.setFont(u8g2_font_6x10_tr);
+
+    // Battery outline: 12x7 body + 2x3 nub
+    int16_t bx = 127 - 14;  // right-aligned
+    int16_t by = 1;
+    u8g2.drawFrame(bx, by, 12, 7);       // body
+    u8g2.drawBox(bx + 12, by + 2, 2, 3); // positive terminal nub
+
+    // Fill bars (each bar is 2px wide with 1px gap)
+    for (uint8_t i = 0; i < level; i++) {
+        u8g2.drawBox(bx + 1 + i * 3, by + 1, 2, 5);
+    }
+}
+
 void renderInit() {
     // Enable OLED power via Vext pin (active low on Heltec V3)
     pinMode(OLED_VEXT, OUTPUT);
@@ -23,6 +86,8 @@ void renderInit() {
     u8g2.setFont(u8g2_font_6x10_tr);
     u8g2.clearBuffer();
     u8g2.sendBuffer();
+
+    batteryInit();
 }
 
 static void drawBlockCell(int16_t x, int16_t y, uint8_t cell) {
@@ -182,6 +247,7 @@ void renderDirectory(const char* titles[], uint8_t count, uint8_t selected) {
 
     // Title bar
     u8g2.drawStr(0, 9, "MeshText");
+    drawBattery();
     u8g2.drawHLine(0, 11, 128);
 
     // Show up to 5 entries starting from a window around selected
@@ -283,6 +349,19 @@ void renderSplash() {
     }
 
     renderPage(splash);
+}
+
+void renderHelpScreen() {
+    u8g2.clearBuffer();
+    u8g2.setFont(u8g2_font_6x10_tr);
+
+    u8g2.drawStr(0,  9, "Controls:");
+    u8g2.drawHLine(0, 11, 128);
+    u8g2.drawStr(0, 23, "Click      Scroll");
+    u8g2.drawStr(0, 33, "Dbl-click  Select");
+    u8g2.drawStr(0, 43, "Hold       Back");
+    u8g2.drawStr(0, 53, "Hold 3s    Edit mode");
+    u8g2.sendBuffer();
 }
 
 void renderDim() {
