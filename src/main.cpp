@@ -40,6 +40,24 @@ static bool radioTestMode = false;
 static uint32_t lastTestSend = 0;
 static uint16_t testCounter = 0;
 
+// Stress test state
+static bool stressRunning = false;
+static bool stressPicking = false;  // waiting for user to pick a neighbor
+static uint32_t stressNodeId = 0;
+static uint8_t stressPageNum = 0;
+static uint16_t stressTotal = 0;
+static uint16_t stressDone = 0;
+static uint16_t stressOk = 0;
+static uint16_t stressFail = 0;
+static uint16_t stressRetries = 0;
+static bool stressWaiting = false;
+static uint32_t stressStartTime = 0;
+
+// Store neighbor IDs for picker menu
+#define STRESS_MAX_PICKS 8
+static uint32_t stressPickIds[STRESS_MAX_PICKS];
+static uint8_t stressPickCount = 0;
+
 void radioTestToggle() {
     radioTestMode = !radioTestMode;
     Serial.printf("Radio test mode: %s\n", radioTestMode ? "ON" : "OFF");
@@ -67,6 +85,50 @@ static void radioTestLoop() {
     }
 }
 
+
+static void stressLoop() {
+    if (!stressRunning) return;
+
+    if (!stressWaiting) {
+        // Send next request
+        meshRequestPage(stressNodeId, stressPageNum);
+        stressWaiting = true;
+        return;
+    }
+
+    // Check for response
+    Page p;
+    bool timedOut;
+    if (meshGetResponse(p, timedOut)) {
+        uint8_t retries = meshGetRetryCount();
+        stressRetries += retries;
+        stressOk++;
+        stressDone++;
+        Serial.printf("  [%d/%d] OK%s\n", stressDone, stressTotal,
+            retries > 0 ? String(" (retried " + String(retries) + "x)").c_str() : "");
+        stressWaiting = false;
+    } else if (timedOut) {
+        stressFail++;
+        stressDone++;
+        Serial.printf("  [%d/%d] FAIL (timed out after retries)\n", stressDone, stressTotal);
+        stressWaiting = false;
+    } else {
+        return; // still waiting
+    }
+
+    // Check if done
+    if (stressDone >= stressTotal) {
+        uint32_t elapsed = millis() - stressStartTime;
+        Serial.println("--- Stress test complete ---");
+        Serial.printf("  Total:   %d requests\n", stressTotal);
+        Serial.printf("  OK:      %d (%.0f%%)\n", stressOk, stressTotal > 0 ? 100.0f * stressOk / stressTotal : 0);
+        Serial.printf("  Failed:  %d\n", stressFail);
+        Serial.printf("  Retries: %d\n", stressRetries);
+        Serial.printf("  Time:    %.1fs (%.1fs avg)\n",
+            elapsed / 1000.0f, stressDone > 0 ? elapsed / 1000.0f / stressDone : 0);
+        stressRunning = false;
+    }
+}
 
 static char serialBuf[64];
 static uint8_t serialPos = 0;
@@ -108,9 +170,34 @@ static void handleSerial() {
     }
 }
 
+static void startStress() {
+    stressDone = 0;
+    stressOk = 0;
+    stressFail = 0;
+    stressRetries = 0;
+    stressWaiting = false;
+    stressStartTime = millis();
+    stressRunning = true;
+    Serial.printf("--- Stress test: %d requests for page %d from %08X ---\n",
+        stressTotal, stressPageNum, stressNodeId);
+}
+
 static void processCommand(const char* input) {
     String line(input);
     line.trim();
+
+    // Handle stress test picker
+    if (stressPicking) {
+        stressPicking = false;
+        int pick = line.toInt();
+        if (pick < 1 || pick > stressPickCount) {
+            Serial.println("Cancelled.");
+            return;
+        }
+        stressNodeId = stressPickIds[pick - 1];
+        startStress();
+        return;
+    }
 
     if (line == "list") {
         PageListEntry list[MAX_PAGES];
@@ -159,8 +246,63 @@ static void processCommand(const char* input) {
     else if (line == "radiotest") {
         radioTestToggle();
     }
+    else if (line.startsWith("stress")) {
+        if (stressRunning) {
+            stressRunning = false;
+            Serial.println("Stress test aborted.");
+            return;
+        }
+
+        // Parse optional args: stress [page] [count]
+        uint8_t pageNum = 100;
+        uint16_t count = 10;
+        int sp1 = line.indexOf(' ');
+        if (sp1 > 0) {
+            pageNum = line.substring(sp1 + 1).toInt();
+            int sp2 = line.indexOf(' ', sp1 + 1);
+            if (sp2 > 0) {
+                count = line.substring(sp2 + 1).toInt();
+            }
+        }
+        if (count == 0 || count > 1000) count = 10;
+        stressPageNum = pageNum;
+        stressTotal = count;
+
+        // List neighbors for selection
+        Neighbor* nbrs;
+        meshGetNeighbors(&nbrs);
+        stressPickCount = 0;
+        for (uint8_t i = 0; i < MAX_NEIGHBORS && stressPickCount < STRESS_MAX_PICKS; i++) {
+            if (!nbrs[i].active) continue;
+            uint32_t age = (millis() - nbrs[i].last_seen) / 1000;
+            if (age > 1800) continue;
+            stressPickIds[stressPickCount] = nbrs[i].node_id;
+            Serial.printf("  %d) %s (%08X) rssi=%.0f\n",
+                stressPickCount + 1, nbrs[i].name, nbrs[i].node_id, nbrs[i].rssi);
+            stressPickCount++;
+        }
+
+        if (stressPickCount == 0) {
+            Serial.println("No neighbors found.");
+            return;
+        }
+
+        Serial.printf("Pick a node (1-%d): ", stressPickCount);
+        stressPicking = true;
+    }
+    else if (line == "neighbors") {
+        Neighbor* neighbors;
+        uint8_t nCount = meshGetNeighbors(&neighbors);
+        Serial.printf("%d neighbors:\n", nCount);
+        for (uint8_t i = 0; i < MAX_NEIGHBORS; i++) {
+            if (!neighbors[i].active) continue;
+            uint32_t age = (millis() - neighbors[i].last_seen) / 1000;
+            Serial.printf("  %08X  %-15s  rssi=%.0f  %ds ago\n",
+                neighbors[i].node_id, neighbors[i].name, neighbors[i].rssi, age);
+        }
+    }
     else {
-        Serial.println("Commands: list, create N \"title\", delete N, radiotest");
+        Serial.println("Commands: list, create, delete, radiotest, neighbors, stress");
     }
 }
 
@@ -238,5 +380,6 @@ void loop() {
     meshLoop();
     navLoop();
     radioTestLoop();
+    stressLoop();
     handleSerial();
 }

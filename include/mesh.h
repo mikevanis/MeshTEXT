@@ -29,3 +29,6 @@ bool meshRequestPage(uint32_t node_id, uint8_t page_num);
 // Returns true if a response arrived, fills page data and tally
 struct Page;
 bool meshGetResponse(Page& page, bool& timedOut, ReactTally* tally = nullptr);
+
+// Get current retry attempt (0 = first try, 1+ = retrying)
+uint8_t meshGetRetryCount();

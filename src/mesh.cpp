@@ -34,6 +34,12 @@ static ReactTally responseTally;
 static bool responseReady = false;
 static bool responseTimedOut = false;
 
+// Retry state
+#define MAX_RETRIES 2
+static uint8_t retryCount = 0;
+static uint32_t retryNodeId = 0;
+static uint8_t retryPageNum = 0;
+
 // Relay queue (simple: one pending relay at a time)
 static uint8_t relayBuf[MAX_PACKET_SIZE];
 static uint8_t relayLen = 0;
@@ -158,6 +164,9 @@ static void handleRequest(const RequestPacket& req) {
         resp.votes_a = tally.votes_a;
         resp.votes_b = tally.votes_b;
     }
+
+    // Small delay so the requester has time to switch back to RX mode
+    delay(50 + random(0, 100));
 
     radioSend((uint8_t*)&resp, sizeof(resp));
     Serial.printf("TX RESPONSE page %d to %08X\n", p.page_num, req.hdr.src);
@@ -306,10 +315,22 @@ void meshLoop() {
         lastEvict = now;
     }
 
-    // Request timeout
+    // Request timeout — retry before giving up
     if (requestPending && (now - requestTime) > RESPONSE_TIMEOUT) {
-        requestPending = false;
-        responseTimedOut = true;
+        if (retryCount < MAX_RETRIES) {
+            retryCount++;
+            Serial.printf("REQUEST retry %d/%d for page %d from %08X\n",
+                retryCount, MAX_RETRIES, retryPageNum, retryNodeId);
+
+            RequestPacket pkt;
+            initHeader(pkt.hdr, PKT_REQUEST, configGet().node_id, retryNodeId);
+            pkt.page_num = retryPageNum;
+            requestTime = millis();
+            radioSend((uint8_t*)&pkt, sizeof(pkt));
+        } else {
+            requestPending = false;
+            responseTimedOut = true;
+        }
     }
 }
 
@@ -334,6 +355,9 @@ bool meshRequestPage(uint32_t node_id, uint8_t page_num) {
     requestTime = millis();
     responseReady = false;
     responseTimedOut = false;
+    retryCount = 0;
+    retryNodeId = node_id;
+    retryPageNum = page_num;
 
     bool ok = radioSend((uint8_t*)&pkt, sizeof(pkt));
     Serial.printf("TX REQUEST page %d from %08X\n", page_num, node_id);
@@ -355,4 +379,8 @@ bool meshGetResponse(Page& page, bool& timedOut, ReactTally* tally) {
     }
     timedOut = false;
     return false;
+}
+
+uint8_t meshGetRetryCount() {
+    return retryCount;
 }

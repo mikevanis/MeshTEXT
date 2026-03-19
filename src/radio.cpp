@@ -68,8 +68,8 @@ bool radioInit() {
 bool radioSend(const uint8_t* data, uint8_t len) {
     int state = radio.transmit(data, len);
 
-    // Clear any flag set by TX done, go back to receive
-    rxFlag = false;
+    // Go back to receive mode — do NOT clear rxFlag, as a packet
+    // may have arrived during TX and we'd lose it
     radio.startReceive();
 
     return (state == RADIOLIB_ERR_NONE);

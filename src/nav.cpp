@@ -313,10 +313,10 @@ void navLoop() {
             currentTally = remoteTally;
             needsRedraw = true;
         } else if (timedOut) {
-            renderMessage("Not responding");
+            renderMessage("No response");
             delay(1500);
             state = NAV_DIRECTORY;
-            needsRedraw = true;
+            navRefreshDirectory();
         }
 
         // Animate loading spinner
@@ -325,7 +325,12 @@ void navLoop() {
         if (millis() - lastSpin > 200) {
             const char* frames[] = {"|", "/", "-", "\\"};
             char msg[32];
-            snprintf(msg, sizeof(msg), "Loading... %s", frames[spinFrame % 4]);
+            uint8_t retry = meshGetRetryCount();
+            if (retry > 0) {
+                snprintf(msg, sizeof(msg), "Retry %d... %s", retry, frames[spinFrame % 4]);
+            } else {
+                snprintf(msg, sizeof(msg), "Loading... %s", frames[spinFrame % 4]);
+            }
             renderMessage(msg);
             spinFrame++;
             lastSpin = millis();
