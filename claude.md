@@ -73,7 +73,7 @@ pkt_id      uint16    random, for dedup
 ttl         uint8     hops remaining, default 3
 ```
 
-**ANNOUNCE** (32 bytes total, broadcast every 5 min):
+**ANNOUNCE** (32 bytes total, broadcast every 1 min):
 ```
 header[12]    type=0x01, dst=0xFFFFFFFF
 name[16]      node name
@@ -118,9 +118,33 @@ Hosting nodes keep tallies in a small file alongside the page: `/pages/NNN.react
 Flood with dedup. On receive:
 1. Check pkt_id against last 64 seen. If duplicate, drop.
 2. If it's for us, process it.
-3. If TTL > 0, decrement and relay after random 100-500ms jitter.
+3. If TTL > 0 and packet is NOT addressed to us, decrement and relay after random 100-500ms jitter.
 
-That's the entire networking stack.
+Unicast packets that have reached their destination are not relayed. Only broadcasts (ANNOUNCEs) and packets for other nodes get relayed.
+
+### Reliability
+
+Half-duplex LoRa means the radio can't TX and RX simultaneously. Several measures improve reliability:
+
+**Listen-Before-Talk (LBT)**: Before every transmit, `radio.scanChannel()` (SX1262 CAD) checks if the channel is busy. If LoRa activity is detected, backs off with exponential random delay (50-150ms, doubling each attempt, max 3 attempts). Transmits regardless after max attempts.
+
+**Non-blocking response delay**: When a node receives a REQUEST, it defers the RESPONSE by 50-150ms (so the requester has time to switch to RX). This delay is non-blocking — the radio stays in RX mode and can still receive packets during the wait.
+
+**Smart TTL for known neighbors**: Requests to nodes in the neighbor table use TTL=0 (no relay needed — they're in direct range). Retries escalate to TTL=1. Responses to known neighbors also use TTL=0. This prevents third nodes from relaying packets between two nodes that can hear each other directly.
+
+**Request retries**: If no response within 10s, retries up to 2 times. First attempt uses TTL=0 (direct), retries use TTL=1 (allow one relay hop).
+
+**TX suppression during request**: While waiting for a RESPONSE, all other TX (announces, relays) is suppressed to keep the radio in RX mode.
+
+### Remaining Mesh Improvements (not yet implemented)
+
+These are planned but not yet built (see plan file for details):
+
+- **Managed relay suppression**: During relay jitter window, if another node relays the same packet first, cancel our relay. Prevents redundant relay storms with 3+ nodes.
+- **REACT TX queuing**: reactSendVisit/reactSendVote currently bypass TX suppression during requestPending. Should be queued and drained when not waiting for a response.
+- **Relay queue expansion**: Currently only 1 relay slot — second packet during jitter window is dropped. Expand to 4 slots (~820 bytes RAM).
+- **RSSI-based relay jitter**: Weaker signal (farther nodes) relay first, closer nodes hear the relay and suppress. Meshtastic-style managed flooding.
+- **Announce jitter**: Add random 0-5s jitter to periodic announce interval to prevent timer synchronization across nodes.
 
 ### Neighbor Table
 
@@ -289,6 +313,17 @@ board_build.filesystem = littlefs
 ## LoRa Settings
 
 SX1262 via RadioLib. 868 MHz (EU) / 915 MHz (US). SF7, 125 kHz BW, CR 4/5. Raw packets, no LoRaWAN. Note: SX1262 uses DIO1 and BUSY pins instead of the DIO0 used by older SX1276 chips.
+
+## Serial Commands
+
+```
+list                      List stored pages
+create N "title"          Create blank page
+delete N                  Delete page
+neighbors                 Show neighbor table with RSSI and age
+stress [page] [count]     Stress test: picks a neighbor, requests page N times (default: page 100, 10 times)
+radiotest                 Toggle periodic test packet transmission
+```
 
 ## Conventions
 

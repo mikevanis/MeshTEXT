@@ -147,11 +147,16 @@ pio device monitor
 ### Serial commands
 
 ```
-> list              List all stored pages
-> create 101 "News" Create a new page
-> delete 101        Delete a page
-> radiotest         Toggle radio test mode
+> list                    List all stored pages
+> create 101 "News"       Create a new page
+> delete 101              Delete a page
+> neighbors               Show discovered nodes with RSSI and age
+> stress                  Stress test — pick a neighbor, request a page 10 times
+> stress 101 20           Stress test page 101, 20 requests
+> radiotest               Toggle radio test mode
 ```
+
+The `stress` command shows a numbered list of discovered neighbors to choose from, then fires repeated page requests and reports success rate, retries, and timing. Use this to test mesh reliability.
 
 ## Protocol
 
