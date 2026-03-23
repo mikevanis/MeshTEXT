@@ -45,6 +45,11 @@ static uint8_t relayBuf[MAX_PACKET_SIZE];
 static uint8_t relayLen = 0;
 static uint32_t relayTime = 0;
 
+// Deferred response (non-blocking delay before sending)
+static uint8_t deferredRespBuf[MAX_PACKET_SIZE];
+static uint8_t deferredRespLen = 0;
+static uint32_t deferredRespTime = 0;
+
 // --- Neighbor table ---
 
 static Neighbor* findNeighbor(uint32_t node_id) {
@@ -165,11 +170,16 @@ static void handleRequest(const RequestPacket& req) {
         resp.votes_b = tally.votes_b;
     }
 
-    // Small delay so the requester has time to switch back to RX mode
-    delay(50 + random(0, 100));
+    // If requester is a known neighbor, no relay needed
+    if (findNeighbor(req.hdr.src)) {
+        resp.hdr.ttl = 0;
+    }
 
-    radioSend((uint8_t*)&resp, sizeof(resp));
-    Serial.printf("TX RESPONSE page %d to %08X\n", p.page_num, req.hdr.src);
+    // Defer the response so the radio stays in RX during the wait
+    memcpy(deferredRespBuf, &resp, sizeof(resp));
+    deferredRespLen = sizeof(resp);
+    deferredRespTime = millis() + 50 + random(0, 100);
+    Serial.printf("RESPONSE queued for page %d to %08X (ttl=%d)\n", p.page_num, req.hdr.src, resp.hdr.ttl);
 }
 
 static void handleResponse(const ResponsePacket& resp) {
@@ -262,8 +272,10 @@ static void processPacket(const uint8_t* buf, uint8_t len, float rssi) {
         }
     }
 
-    // Relay if TTL > 0
-    if (hdr->ttl > 0) {
+    // Relay if TTL > 0 — but only if it's NOT addressed to us.
+    // Unicast packets we received have reached their destination.
+    // Broadcast packets (announces) and packets for OTHER nodes get relayed.
+    if (hdr->ttl > 0 && hdr->dst != cfg.node_id) {
         scheduleRelay(buf, len, hdr->ttl - 1);
     }
 }
@@ -276,6 +288,7 @@ void meshInit() {
     requestPending = false;
     responseReady = false;
     relayLen = 0;
+    deferredRespLen = 0;
     bootAnnounceTime = ANNOUNCE_BOOT_DELAY + random(0, 3000);  // 5-8s jitter
 }
 
@@ -288,6 +301,13 @@ void meshLoop() {
     int len = radioReceive(buf, sizeof(buf), &rssi);
     if (len > 0) {
         processPacket(buf, len, rssi);
+    }
+
+    // Send deferred response if ready (non-blocking delay)
+    if (deferredRespLen > 0 && now >= deferredRespTime) {
+        radioSend(deferredRespBuf, deferredRespLen);
+        Serial.printf("TX RESPONSE (deferred)\n");
+        deferredRespLen = 0;
     }
 
     // Suppress all TX while waiting for a response — any transmission
@@ -325,6 +345,8 @@ void meshLoop() {
             RequestPacket pkt;
             initHeader(pkt.hdr, PKT_REQUEST, configGet().node_id, retryNodeId);
             pkt.page_num = retryPageNum;
+            // Retries allow relay (TTL=1) in case direct delivery is failing
+            pkt.hdr.ttl = 1;
             requestTime = millis();
             radioSend((uint8_t*)&pkt, sizeof(pkt));
         } else {
@@ -350,6 +372,12 @@ bool meshRequestPage(uint32_t node_id, uint8_t page_num) {
     RequestPacket pkt;
     initHeader(pkt.hdr, PKT_REQUEST, cfg.node_id, node_id);
     pkt.page_num = page_num;
+
+    // If the target is a known neighbor, no relay needed (TTL=0).
+    // Retries will use TTL=1 in case direct delivery failed.
+    if (findNeighbor(node_id)) {
+        pkt.hdr.ttl = 0;
+    }
 
     requestPending = true;
     requestTime = millis();

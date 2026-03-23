@@ -66,6 +66,20 @@ bool radioInit() {
 }
 
 bool radioSend(const uint8_t* data, uint8_t len) {
+    // Listen-before-talk: CAD check with exponential backoff
+    for (int attempt = 0; attempt < 3; attempt++) {
+        int cad = radio.scanChannel();
+        if (cad == RADIOLIB_CHANNEL_FREE) break;
+        if (cad == RADIOLIB_LORA_DETECTED) {
+            uint32_t backoff = random(50, 150) * (1 << attempt);
+            Serial.printf("LBT: channel busy, backoff %dms (attempt %d)\n", backoff, attempt + 1);
+            delay(backoff);
+            radio.startReceive();  // re-enter RX between attempts
+        } else {
+            break;  // CAD error, just transmit
+        }
+    }
+
     int state = radio.transmit(data, len);
 
     // Go back to receive mode — do NOT clear rxFlag, as a packet
