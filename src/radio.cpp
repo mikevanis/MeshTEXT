@@ -73,8 +73,8 @@ bool radioSend(const uint8_t* data, uint8_t len) {
         if (cad == RADIOLIB_LORA_DETECTED) {
             uint32_t backoff = random(50, 150) * (1 << attempt);
             Serial.printf("LBT: channel busy, backoff %dms (attempt %d)\n", backoff, attempt + 1);
+            radio.startReceive();  // re-enter RX during backoff
             delay(backoff);
-            radio.startReceive();  // re-enter RX between attempts
         } else {
             break;  // CAD error, just transmit
         }
